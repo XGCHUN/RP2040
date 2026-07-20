@@ -93,6 +93,10 @@
 #include "flash.h"
 #endif
 
+#if XY2_100_ENABLE
+#include "xy2_100.h"
+#endif
+
 #if WIFI_ENABLE
 #include "wifi.h"
 #endif
@@ -1084,6 +1088,10 @@ inline static __attribute__((always_inline)) void stepperSetStepOutputs (axes_si
     step_out.bits &= ~step_pulse.inject.claimed.bits;
 #endif
 
+#if XY2_100_ENABLE
+    step_out.bits &= ~XY2_AXES_MASK;
+#endif
+
     axes_signals_t step_out1 = { .bits = (step_out.bits & motors_1.bits) },
                    step_out2 = { .bits = ((step_out.bits & motors_2.bits) & 0b111) };
 
@@ -1150,6 +1158,10 @@ inline static __attribute__((always_inline)) void stepperSetStepOutputs (axes_si
 {
 #if STEP_INJECT_ENABLE
     step_out.bits &= ~step_pulse.inject.claimed.bits;
+#endif
+
+#if XY2_100_ENABLE
+    step_out.bits &= ~XY2_AXES_MASK;
 #endif
 
 #if STEP_PORT == GPIO_SR8
@@ -1334,6 +1346,10 @@ static inline __attribute__((always_inline)) void stepper_set_dir (uint_fast8_t 
 //inline static __attribute__((always_inline)) void stepperSetDirOutputs (axes_signals_t dir_out)
 static void stepperSetDirOutputs (axes_signals_t dir_out)
 {
+#if XY2_100_ENABLE
+    dir_out.bits &= ~XY2_AXES_MASK;
+#endif
+
 #if STEP_INJECT_ENABLE
 
     uint_fast8_t idx, mask = 1;
@@ -2219,6 +2235,11 @@ void settings_changed (settings_t *settings, settings_changed_flags_t changed)
 
 #endif // PIO step parameters init
 
+#if XY2_100_ENABLE
+        extern void xy2_100_settings_changed(void);
+        xy2_100_settings_changed();
+#endif
+
         hal.stepper.go_idle(true);
 
         /***********************
@@ -3064,8 +3085,12 @@ bool driver_init (void)
 
 #elif STEP_PORT == GPIO_PIO
 
-if(pio_claim_free_sm_and_add_program_for_gpio_range(&step_pulse_program, &step_pio, &step_sm, &pio_offset, STEP_PINS_BASE, N_AXIS + N_GANGED, STEP_PINS_BASE + N_AXIS + N_GANGED > 31))
-   step_pulse_program_init(step_pio, step_sm, pio_offset, STEP_PINS_BASE, N_AXIS + N_GANGED, pio_clk);
+#ifndef STEP_PIO_PIN_COUNT
+#define STEP_PIO_PIN_COUNT (N_AXIS + N_GANGED)
+#endif
+
+if(pio_claim_free_sm_and_add_program_for_gpio_range(&step_pulse_program, &step_pio, &step_sm, &pio_offset, STEP_PINS_BASE, STEP_PIO_PIN_COUNT, STEP_PINS_BASE + STEP_PIO_PIN_COUNT > 31))
+   step_pulse_program_init(step_pio, step_sm, pio_offset, STEP_PINS_BASE, STEP_PIO_PIN_COUNT, pio_clk);
 
 #elif STEP_PORT == GPIO_SR8
 
@@ -3104,6 +3129,10 @@ sr8_pio = sr8_delay_pio = sr8_hold_pio = pio0;
         spi_reset_out(1);
   #endif
     }
+#endif
+
+#if XY2_100_ENABLE
+    xy2_100_init();
 #endif
 
 #ifdef NEOPIXELS_PIN
@@ -3198,6 +3227,11 @@ static void __not_in_flash_func(stepper_int_handler)(void)
     hal.stepper.interrupt_callback();
 
     stepper_timer_irq_clear(pio1);
+
+#if XY2_100_ENABLE
+    // After step execution, send updated galvo position
+    xy2_100_update(sys.position[XY2_AXIS_0], sys.position[XY2_AXIS_1]);
+#endif
 }
 
 #if SPINDLE_ENCODER_ENABLE

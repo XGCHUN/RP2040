@@ -166,6 +166,10 @@
   #include "boards/pico_cnc_map.h"
 #elif defined(BOARD_RP23U5XBB)
   #include "boards/RP2350B_5X_map.h"
+#elif defined(BOARD_CV00)
+  #include "boards/CV00_map.h"
+#elif defined(BOARD_CV01)
+  #include "boards/CV01_map.h"
 #elif defined(BOARD_PICOBOB)
   #include "boards/picobob_map.h"
 #elif defined(BOARD_PICOBOB_G540)
@@ -200,14 +204,24 @@
 #define STEP_PULSE_TOFF_MIN 2.0f
 #endif
 
+#ifndef XY2_100_ENABLE
+#define XY2_100_ENABLE 0
+#endif
+
 #if SPI_ENABLE && !defined(SPI_DMA_ENABLE)
 #define SPI_DMA_ENABLE 1
 #endif
 
 #if STEP_PORT == GPIO_PIO
+#ifndef X_STEP_PIN
 #define X_STEP_PIN STEP_PINS_BASE + 0
+#endif
+#ifndef Y_STEP_PIN
 #define Y_STEP_PIN STEP_PINS_BASE + 1
+#endif
+#ifndef Z_STEP_PIN
 #define Z_STEP_PIN STEP_PINS_BASE + 2
+#endif
 #if defined(M3_AVAILABLE) && !defined(M3_STEP_PIN)
 #define M3_STEP_PIN STEP_PINS_BASE + 3
 #endif

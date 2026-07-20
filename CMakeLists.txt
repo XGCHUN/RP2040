@@ -26,7 +26,7 @@ option(ADD_MQTT "Add MQTT client API" OFF)
 option(AddMyPlugin "Add my_plugin.c to build" OFF)
 
 # Select the correct board in VSCode, the following line will be updated accordingly
-set(PICO_BOARD pico CACHE STRING "Board type")
+set(PICO_BOARD pimoroni_pga2350 CACHE STRING "Board type")
 
 include(pico_sdk_import.cmake)
 
@@ -84,6 +84,7 @@ if(AddMyPlugin)
     littlefs/lfs.c
     littlefs/lfs_util.c
     littlefs_hal.c
+    xy2_100.c
     )
 else()
     add_executable(grblHAL
@@ -108,10 +109,12 @@ else()
     littlefs/lfs.c
     littlefs/lfs_util.c
     littlefs_hal.c
+    xy2_100.c
     )
 endif()
 
 pico_generate_pio_header(grblHAL ${CMAKE_CURRENT_LIST_DIR}/driverPIO.pio)
+pico_generate_pio_header(grblHAL ${CMAKE_CURRENT_LIST_DIR}/xy2_100.pio)
 
 if(PICO_BOARD STREQUAL "pico" OR PICO_BOARD STREQUAL "pico_w")
 target_compile_definitions(grblHAL PUBLIC RP_MCU=2040)

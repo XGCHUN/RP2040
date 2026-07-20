@@ -1,0 +1,93 @@
+;
+; xy2_100.pio - XY2-100 galvo protocol transmitter for RP2040/RP2350
+;
+; XY2-100 protocol frame (20 bits, MSB first):
+;   bit[19:17] = 001 (position command)
+;   bit[16:1]  = 16-bit position data (0x0000 ~ 0xFFFF)
+;   bit[0]     = even parity over bits[19:1]
+;
+; Timing:
+;   PIO clock = 4MHz, each bit takes 2 PIO cycles (CLK low + CLK high)
+;   Effective CLK output = 2MHz, frame time = 10us
+;
+; Pin assignment:
+;   OUT pin     = DATA (one per channel, X or Y)
+;   side-set[0] = CLK  (active high, shared between X and Y)
+;   side-set[1] = SYNC (active high during frame transmission)
+;
+; Data format in FIFO (32-bit word):
+;   bits[31:12] = 20-bit XY2-100 frame (MSB first), bits[11:0] = don't care
+;   The program shifts OUT from MSB (left shift)
+;
+
+.program xy2_100
+.side_set 2
+
+.wrap_target
+    pull block          side 0b00   ; Wait for data word, SYNC=0, CLK=0 (inter-frame gap)
+    set x, 19           side 0b10   ; 20 bits to send, raise SYNC
+bitloop:
+    out pins, 1         side 0b10   ; Output data bit, CLK=0 (data setup)
+    jmp x-- bitloop     side 0b11   ; CLK=1 rising edge (receiver latches data)
+    nop                 side 0b00   ; Frame complete: SYNC=0, CLK=0
+.wrap
+
+% c-sdk {
+#include "hardware/clocks.h"
+
+static inline void xy2_100_program_init(PIO pio, uint sm, uint offset, uint data_pin, uint clk_pin, uint sync_pin) {
+
+    // Configure state machine
+    pio_sm_config c = xy2_100_program_get_default_config(offset);
+
+    // OUT pin = data_pin (1 pin)
+    sm_config_set_out_pins(&c, data_pin, 1);
+
+    // side-set: bit0 = clk_pin, bit1 = sync_pin (must be consecutive: clk_pin, clk_pin+1)
+    // We handle the case where sync_pin = clk_pin + 1
+    sm_config_set_sideset_pins(&c, clk_pin);
+
+    // Shift OSR to the left (MSB first), no autopull
+    sm_config_set_out_shift(&c, false, false, 32);
+
+    // Join TX FIFO for deeper buffering
+    sm_config_set_fifo_join(&c, PIO_FIFO_JOIN_TX);
+
+    // Clock divider: target 4MHz PIO clock for 2MHz XY2-100 CLK
+    float div = (float)clock_get_hz(clk_sys) / 4000000.0f;
+    sm_config_set_clkdiv(&c, div);
+
+    // Initialize GPIO pins
+    pio_gpio_init(pio, data_pin);
+    pio_gpio_init(pio, clk_pin);
+    pio_gpio_init(pio, sync_pin);
+
+    // Set pin directions to output
+    pio_sm_set_consecutive_pindirs(pio, sm, data_pin, 1, true);
+    pio_sm_set_consecutive_pindirs(pio, sm, clk_pin, 1, true);
+    pio_sm_set_consecutive_pindirs(pio, sm, sync_pin, 1, true);
+
+    // Load configuration and start
+    pio_sm_init(pio, sm, offset, &c);
+    pio_sm_set_enabled(pio, sm, true);
+}
+
+// Build a 20-bit XY2-100 frame from a 16-bit position value
+// Returns a 32-bit word with the frame left-aligned in bits[31:12]
+static inline uint32_t xy2_100_build_frame(uint16_t position) {
+    // Frame: 001 + 16-bit position + parity = 20 bits
+    uint32_t frame = (0b001UL << 17) | ((uint32_t)position << 1);
+
+    // Calculate even parity over bits[19:1]
+    uint32_t p = frame >> 1;  // bits[19:1]
+    p ^= p >> 8;
+    p ^= p >> 4;
+    p ^= p >> 2;
+    p ^= p >> 1;
+    frame |= (p & 1);  // bit[0] = parity
+
+    // Left-align to bits[31:12] for MSB-first output
+    return frame << 12;
+}
+
+%}
