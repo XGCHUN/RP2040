@@ -47,7 +47,7 @@
 #define STEP_PORT           GPIO_PIO
 #define STEP_PINS_BASE      30
 // Override: tell PIO to only allocate pins for physical motors, not all N_AXIS
-#define STEP_PIO_PIN_COUNT  6   // X,Y,Z,A,B,C only
+#define STEP_PIO_PIN_COUNT  8   // X,Y,Z,A,B,C,U,V only
 
 // === Direction Pins ===
 // Only 6 physical motors need direction output.

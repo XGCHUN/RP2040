@@ -41,37 +41,26 @@
 #define XY2_SYNC_PIN        41  // Must be CLK + 1
 
 // === Step Pins ===
-// Only 2 physical motors (Z, A), PIO allocates 2 consecutive pins.
-// X/Y have NO step pin — position output is purely via XY2-100.
+// All 4 axes get PIO step pins (consecutive from GPIO30).
+// X/Y galvo axes are pulsed by PIO but masked at runtime by XY2_AXES_MASK.
 #define STEP_PORT           GPIO_PIO
 #define STEP_PINS_BASE      30
-#define STEP_PIO_PIN_COUNT  2   // Z, A only
-
-// Override auto-generated step pins:
-// PIO out bits: bit0 → GPIO30 (Z), bit1 → GPIO31 (A)
-// X/Y step pins still get defined by driver.h (base+0, base+1) but
-// their bits are cleared by XY2_AXES_MASK before reaching PIO output.
-// Z and A must map to the correct PIO bit positions:
-#define X_STEP_PIN          (STEP_PINS_BASE + 2)  // Virtual, never toggled
-#define Y_STEP_PIN          (STEP_PINS_BASE + 3)  // Virtual, never toggled
-#define Z_STEP_PIN          30  // PIO bit 0
-#define M3_STEP_PIN         31  // PIO bit 1 (A axis)
+#define STEP_PIO_PIN_COUNT  4
+// All 4 axes: X=30, Y=31, Z=32, A=33
+// (X/Y pulses are suppressed by XY2_AXES_MASK in stepperSetStepOutputs)
 
 // === Direction Pins ===
-// Only Z and A have physical direction output.
-// X/Y are dummies (galvo axes, never written due to XY2_AXES_MASK clearing those bits).
+// All 4 axes get GPIO direction pins.
+// X/Y dir outputs are suppressed by XY2_AXES_MASK in stepperSetDirOutputs.
 #define DIRECTION_PORT      GPIO_OUTPUT
-#define X_DIRECTION_PIN     22  // Dummy (shared with Z, but bit never set)
-#define Y_DIRECTION_PIN     23  // Dummy (shared with A, but bit never set)
-#define Z_DIRECTION_PIN     22
+#define X_DIRECTION_PIN     22
+#define Y_DIRECTION_PIN     23
+#define Z_DIRECTION_PIN     24
 #define DIRECTION_OUTMODE   GPIO_MAP
 
 // === Additional Axis: A (M3) ===
 #define M3_AVAILABLE
-#define M3_DIRECTION_PIN    23
-
-// Direction mask: only Z and A pins (X/Y bits already cleared by XY2_AXES_MASK)
-#define DIRECTION_MASK      ((1UL << Z_DIRECTION_PIN) | (1UL << M3_DIRECTION_PIN))
+#define M3_DIRECTION_PIN    25
 
 // === Enable ===
 #define ENABLE_PORT         GPIO_OUTPUT
