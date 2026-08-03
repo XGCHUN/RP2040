@@ -27,6 +27,9 @@
 
 #define BOARD_NAME "CV01"
 
+// === PSRAM ===
+#define PICO_RP2350_PSRAM_CS_PIN 19
+
 // 4 axes: X(galvo), Y(galvo), Z(stepper), A(stepper)
 #undef N_AXIS
 #define N_AXIS 4
@@ -94,16 +97,20 @@
 #endif
 
 // === Auxiliary I/O ===
-#define AUXOUTPUT0_PORT     GPIO_OUTPUT
-#define AUXOUTPUT0_PIN      5
-#define AUXOUTPUT1_PORT     GPIO_OUTPUT
-#define AUXOUTPUT1_PIN      6
+// #define AUXOUTPUT0_PORT     GPIO_OUTPUT
+// #define AUXOUTPUT0_PIN      5
+// #define AUXOUTPUT1_PORT     GPIO_OUTPUT
+// #define AUXOUTPUT1_PIN      6
 
-#define AUXINPUT0_PIN       7       // Probe
-#define AUXINPUT1_PIN       8       // Safety door
-#define AUXINPUT7_PIN       9       // Reset/EStop
-#define AUXINPUT8_PIN       10      // Feed hold
-#define AUXINPUT9_PIN       11      // Cycle start
+// #define AUXINPUT0_PIN       7       // Probe
+// #define AUXINPUT1_PIN       8       // Safety door
+// #define AUXINPUT7_PIN       9       // Reset/EStop
+// #define AUXINPUT8_PIN       10      // Feed hold
+// #define AUXINPUT9_PIN       11      // Cycle start
+
+#undef CONTROL_ENABLE
+#undef PROBE_ENABLE
+#undef SAFETY_DOOR_ENABLE
 
 // === Control ===
 #if CONTROL_ENABLE & CONTROL_HALT
@@ -139,3 +146,11 @@
 #define SPI_MISO_PIN        16
 #define SD_CS_PIN           17
 #endif
+
+#undef RX_BUFFER_SIZE
+#define RX_BUFFER_SIZE 64 * 1024  // must be a power of 2
+
+
+#undef TX_BUFFER_SIZE
+#define TX_BUFFER_SIZE 64 * 1024  // must be a power of 2
+
