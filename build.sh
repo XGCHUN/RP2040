@@ -11,9 +11,6 @@ set -e
 PROJECT_DIR="$(cd "$(dirname "$0")" && pwd)"
 BUILD_DIR="${PROJECT_DIR}/build"
 
-# 默认板子类型，按需修改
-BOARD="${BOARD:-pico}"
-
 # 并行编译线程数，默认使用全部 CPU 核心
 JOBS="${JOBS:-$(nproc)}"
 
@@ -26,9 +23,7 @@ do_clean() {
 }
 
 do_configure() {
-    echo ">> 配置 CMake (PICO_BOARD=${BOARD})..."
     cmake -B "${BUILD_DIR}" -S "${PROJECT_DIR}" \
-        -DPICO_BOARD="${BOARD}"
     echo ">> 配置完成"
 }
 
