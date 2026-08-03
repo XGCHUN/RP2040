@@ -1,93 +1,172 @@
 ;
 ; xy2_100.pio - XY2-100 galvo protocol transmitter for RP2040/RP2350
 ;
-; XY2-100 protocol frame (20 bits, MSB first):
-;   bit[19:17] = 001 (position command)
-;   bit[16:1]  = 16-bit position data (0x0000 ~ 0xFFFF)
-;   bit[0]     = even parity over bits[19:1]
+; Single State Machine drives both channels simultaneously:
+;   OUT pin[0] = DATA_0 (channel 0, e.g. X or U)
+;   OUT pin[1] = DATA_1 (channel 1, e.g. Y or V)
+;   side-set[0] = CLK   (rising edge latches data at receiver)
+;   side-set[1] = SYNC  (high during 20-bit frame)
+;
+; Data format: two 32-bit words per frame
+;   Word 0 bits[31:12]: 10 bit-pairs (bit positions 19..10), left-aligned
+;   Word 1 bits[31:12]: 10 bit-pairs (bit positions 9..0), left-aligned
+;   Each pair: [DATA_0_bit, DATA_1_bit]
 ;
 ; Timing:
-;   PIO clock = 4MHz, each bit takes 2 PIO cycles (CLK low + CLK high)
-;   Effective CLK output = 2MHz, frame time = 10us
+;   PIO clock = 4MHz → 2 cycles per bit → CLK output = 2MHz
+;   Frame = 20 bits × 500ns = 10µs → 100kHz frame rate
 ;
-; Pin assignment:
-;   OUT pin     = DATA (one per channel, X or Y)
-;   side-set[0] = CLK  (active high, shared between X and Y)
-;   side-set[1] = SYNC (active high during frame transmission)
-;
-; Data format in FIFO (32-bit word):
-;   bits[31:12] = 20-bit XY2-100 frame (MSB first), bits[11:0] = don't care
-;   The program shifts OUT from MSB (left shift)
+; Pin mapping (DATA_0 and DATA_1 must be consecutive GPIOs):
+;   OUT base  = DATA_0_PIN (2 pins: DATA_0, DATA_1)
+;   side-set  = CLK_PIN    (2 pins: CLK, SYNC = CLK+1)
 ;
 
 .program xy2_100
 .side_set 2
 
 .wrap_target
-    pull block          side 0b00   ; Wait for data word, SYNC=0, CLK=0 (inter-frame gap)
-    set x, 19           side 0b10   ; 20 bits to send, raise SYNC
-bitloop:
-    out pins, 1         side 0b10   ; Output data bit, CLK=0 (data setup)
-    jmp x-- bitloop     side 0b11   ; CLK=1 rising edge (receiver latches data)
-    nop                 side 0b00   ; Frame complete: SYNC=0, CLK=0
+    ; --- First half: 10 bit-pairs from word 0 ---
+    pull block          side 0b00   ; Get word 0, SYNC=0 CLK=0 (inter-frame gap)
+    set x, 9           side 0b10   ; 10 pairs from this word, raise SYNC
+loop0:
+    out pins, 2         side 0b10   ; Output 2 bits (DATA_0 + DATA_1), CLK=0
+    jmp x-- loop0       side 0b11   ; CLK rising edge
+
+    ; --- Second half: 10 bit-pairs from word 1 ---
+    pull block          side 0b10   ; Get word 1, keep SYNC high
+    set x, 9           side 0b10   ; 10 more pairs
+loop1:
+    out pins, 2         side 0b10   ; Output 2 bits, CLK=0
+    jmp x-- loop1       side 0b11   ; CLK rising edge
+
+    nop                 side 0b00   ; Frame done: SYNC=0, CLK=0
 .wrap
 
 % c-sdk {
 #include "hardware/clocks.h"
 
-static inline void xy2_100_program_init(PIO pio, uint sm, uint offset, uint data_pin, uint clk_pin, uint sync_pin) {
+static inline void xy2_100_program_init(PIO pio, uint sm, uint offset,
+                                         uint data_base_pin, uint clk_pin) {
 
-    // Configure state machine
+    uint sync_pin = clk_pin + 1;
+
     pio_sm_config c = xy2_100_program_get_default_config(offset);
 
-    // OUT pin = data_pin (1 pin)
-    sm_config_set_out_pins(&c, data_pin, 1);
+    // OUT pins: 2 consecutive (DATA_0, DATA_1)
+    sm_config_set_out_pins(&c, data_base_pin, 2);
 
-    // side-set: bit0 = clk_pin, bit1 = sync_pin (must be consecutive: clk_pin, clk_pin+1)
-    // We handle the case where sync_pin = clk_pin + 1
+    // side-set pins: 2 consecutive (CLK, SYNC)
     sm_config_set_sideset_pins(&c, clk_pin);
 
-    // Shift OSR to the left (MSB first), no autopull
+    // Shift OSR left (MSB first), no autopull (manual pull in PIO program)
     sm_config_set_out_shift(&c, false, false, 32);
 
-    // Join TX FIFO for deeper buffering
+    // Join TX FIFO for 8-deep buffering
     sm_config_set_fifo_join(&c, PIO_FIFO_JOIN_TX);
 
-    // Clock divider: target 4MHz PIO clock for 2MHz XY2-100 CLK
+    // Clock: 4MHz PIO → 2MHz CLK output
     float div = (float)clock_get_hz(clk_sys) / 4000000.0f;
     sm_config_set_clkdiv(&c, div);
 
-    // Initialize GPIO pins
-    pio_gpio_init(pio, data_pin);
+    // Initialize GPIO for PIO
+    pio_gpio_init(pio, data_base_pin);
+    pio_gpio_init(pio, data_base_pin + 1);
     pio_gpio_init(pio, clk_pin);
     pio_gpio_init(pio, sync_pin);
 
-    // Set pin directions to output
-    pio_sm_set_consecutive_pindirs(pio, sm, data_pin, 1, true);
-    pio_sm_set_consecutive_pindirs(pio, sm, clk_pin, 1, true);
-    pio_sm_set_consecutive_pindirs(pio, sm, sync_pin, 1, true);
+    // Pin directions: output
+    pio_sm_set_consecutive_pindirs(pio, sm, data_base_pin, 2, true);
+    pio_sm_set_consecutive_pindirs(pio, sm, clk_pin, 2, true);
 
-    // Load configuration and start
+    // Init and start
     pio_sm_init(pio, sm, offset, &c);
     pio_sm_set_enabled(pio, sm, true);
 }
 
-// Build a 20-bit XY2-100 frame from a 16-bit position value
-// Returns a 32-bit word with the frame left-aligned in bits[31:12]
-static inline uint32_t xy2_100_build_frame(uint16_t position) {
-    // Frame: 001 + 16-bit position + parity = 20 bits
+// Build a 20-bit XY2-100 frame from 16-bit position, returns frame in bits[19:0]
+// parity_odd: false = even parity (standard), true = odd parity
+static inline uint32_t xy2_100_build_frame(uint16_t position, bool parity_odd) {
     uint32_t frame = (0b001UL << 17) | ((uint32_t)position << 1);
 
-    // Calculate even parity over bits[19:1]
-    uint32_t p = frame >> 1;  // bits[19:1]
+    // Parity over bits[19:1]
+    uint32_t p = frame >> 1;
     p ^= p >> 8;
     p ^= p >> 4;
     p ^= p >> 2;
     p ^= p >> 1;
-    frame |= (p & 1);  // bit[0] = parity
+    frame |= ((p ^ (uint32_t)parity_odd) & 1);
 
-    // Left-align to bits[31:12] for MSB-first output
-    return frame << 12;
+    return frame;
+}
+
+// Interleave two 20-bit frames into two 32-bit words (10 bit-pairs each, left-aligned)
+// Uses LUT-based bit-spread: ~6 table lookups + shifts instead of 20-iteration loop.
+//
+// PIO OUT 2 pins: bit[2i] → DATA_0, bit[2i+1] → DATA_1 (for each bit position i)
+// Words are left-aligned: useful bits in [31:12].
+
+// LUT: spread 8 bits into 16 bits by inserting a 0 between each bit
+// e.g. 0b_abcdefgh → 0b_0a_0b_0c_0d_0e_0f_0g_0h
+__attribute__((section(".data"))) static const uint16_t spread_lut[256] = {
+    0x0000, 0x0001, 0x0004, 0x0005, 0x0010, 0x0011, 0x0014, 0x0015,
+    0x0040, 0x0041, 0x0044, 0x0045, 0x0050, 0x0051, 0x0054, 0x0055,
+    0x0100, 0x0101, 0x0104, 0x0105, 0x0110, 0x0111, 0x0114, 0x0115,
+    0x0140, 0x0141, 0x0144, 0x0145, 0x0150, 0x0151, 0x0154, 0x0155,
+    0x0400, 0x0401, 0x0404, 0x0405, 0x0410, 0x0411, 0x0414, 0x0415,
+    0x0440, 0x0441, 0x0444, 0x0445, 0x0450, 0x0451, 0x0454, 0x0455,
+    0x0500, 0x0501, 0x0504, 0x0505, 0x0510, 0x0511, 0x0514, 0x0515,
+    0x0540, 0x0541, 0x0544, 0x0545, 0x0550, 0x0551, 0x0554, 0x0555,
+    0x1000, 0x1001, 0x1004, 0x1005, 0x1010, 0x1011, 0x1014, 0x1015,
+    0x1040, 0x1041, 0x1044, 0x1045, 0x1050, 0x1051, 0x1054, 0x1055,
+    0x1100, 0x1101, 0x1104, 0x1105, 0x1110, 0x1111, 0x1114, 0x1115,
+    0x1140, 0x1141, 0x1144, 0x1145, 0x1150, 0x1151, 0x1154, 0x1155,
+    0x1400, 0x1401, 0x1404, 0x1405, 0x1410, 0x1411, 0x1414, 0x1415,
+    0x1440, 0x1441, 0x1444, 0x1445, 0x1450, 0x1451, 0x1454, 0x1455,
+    0x1500, 0x1501, 0x1504, 0x1505, 0x1510, 0x1511, 0x1514, 0x1515,
+    0x1540, 0x1541, 0x1544, 0x1545, 0x1550, 0x1551, 0x1554, 0x1555,
+    0x4000, 0x4001, 0x4004, 0x4005, 0x4010, 0x4011, 0x4014, 0x4015,
+    0x4040, 0x4041, 0x4044, 0x4045, 0x4050, 0x4051, 0x4054, 0x4055,
+    0x4100, 0x4101, 0x4104, 0x4105, 0x4110, 0x4111, 0x4114, 0x4115,
+    0x4140, 0x4141, 0x4144, 0x4145, 0x4150, 0x4151, 0x4154, 0x4155,
+    0x4400, 0x4401, 0x4404, 0x4405, 0x4410, 0x4411, 0x4414, 0x4415,
+    0x4440, 0x4441, 0x4444, 0x4445, 0x4450, 0x4451, 0x4454, 0x4455,
+    0x4500, 0x4501, 0x4504, 0x4505, 0x4510, 0x4511, 0x4514, 0x4515,
+    0x4540, 0x4541, 0x4544, 0x4545, 0x4550, 0x4551, 0x4554, 0x4555,
+    0x5000, 0x5001, 0x5004, 0x5005, 0x5010, 0x5011, 0x5014, 0x5015,
+    0x5040, 0x5041, 0x5044, 0x5045, 0x5050, 0x5051, 0x5054, 0x5055,
+    0x5100, 0x5101, 0x5104, 0x5105, 0x5110, 0x5111, 0x5114, 0x5115,
+    0x5140, 0x5141, 0x5144, 0x5145, 0x5150, 0x5151, 0x5154, 0x5155,
+    0x5400, 0x5401, 0x5404, 0x5405, 0x5410, 0x5411, 0x5414, 0x5415,
+    0x5440, 0x5441, 0x5444, 0x5445, 0x5450, 0x5451, 0x5454, 0x5455,
+    0x5500, 0x5501, 0x5504, 0x5505, 0x5510, 0x5511, 0x5514, 0x5515,
+    0x5540, 0x5541, 0x5544, 0x5545, 0x5550, 0x5551, 0x5554, 0x5555,
+};
+
+// Spread 10 bits into 20 bits: split into [9:8] + [7:0], lookup each, combine
+static inline uint32_t spread_10bit(uint32_t v) {
+    return ((uint32_t)spread_lut[(v >> 8) & 0x03] << 16) |
+            (uint32_t)spread_lut[v & 0xFF];
+}
+
+static inline void xy2_100_interleave(uint32_t frame0, uint32_t frame1,
+                                       uint32_t *word0, uint32_t *word1) {
+    // Split each 20-bit frame into upper 10 and lower 10
+    uint32_t f0_hi = (frame0 >> 10) & 0x3FF;
+    uint32_t f0_lo = frame0 & 0x3FF;
+    uint32_t f1_hi = (frame1 >> 10) & 0x3FF;
+    uint32_t f1_lo = frame1 & 0x3FF;
+
+    // Spread into even bit positions, shift ch1 to odd positions, OR, left-align
+    *word0 = (spread_10bit(f0_hi) | (spread_10bit(f1_hi) << 1)) << 12;
+    *word1 = (spread_10bit(f0_lo) | (spread_10bit(f1_lo) << 1)) << 12;
+}
+
+// Build and interleave two XY2-100 frames into two 32-bit PIO words
+static inline void xy2_100_build_pair(uint16_t pos0, uint16_t pos1, bool parity_odd,
+                                       uint32_t *word0, uint32_t *word1) {
+    uint32_t frame0 = xy2_100_build_frame(pos0, parity_odd);
+    uint32_t frame1 = xy2_100_build_frame(pos1, parity_odd);
+    xy2_100_interleave(frame0, frame1, word0, word1);
 }
 
 %}
