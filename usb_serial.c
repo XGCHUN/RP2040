@@ -160,21 +160,21 @@ static int32_t usb_in_chars (uint8_t *buf, uint32_t length)
 //
 // Returns number of characters in USB input buffer
 //
-static uint16_t usb_serialRxCount (void)
+static uint32_t usb_serialRxCount (void)
 {
-    uint_fast16_t tail = rxbuf.tail, head = rxbuf.head;
+    uint_fast32_t tail = rxbuf.tail, head = rxbuf.head;
 
-    return (uint16_t)BUFCOUNT(head, tail, RX_BUFFER_SIZE);
+    return (uint32_t)BUFCOUNT(head, tail, RX_BUFFER_SIZE);
 }
 
 //
 // Returns number of free characters in USB input buffer
 //
-static uint16_t usb_serialRxFree (void)
+static uint32_t usb_serialRxFree (void)
 {
-    uint_fast16_t tail = rxbuf.tail, head = rxbuf.head;
+    uint_fast32_t tail = rxbuf.tail, head = rxbuf.head;
  
-    return (uint16_t)((RX_BUFFER_SIZE - 1) - BUFCOUNT(head, tail, RX_BUFFER_SIZE));
+    return (uint32_t)((RX_BUFFER_SIZE - 1) - BUFCOUNT(head, tail, RX_BUFFER_SIZE));
 }
 
 //
@@ -229,7 +229,7 @@ bool _usb_write (void)
 //
 // Writes a number of characters from string to the USB output stream, blocks if buffer full
 //
-static void usb_serialWrite (const uint8_t *s, uint16_t length)
+static void usb_serialWrite (const uint8_t *s, uint32_t length)
 {
     // Empty buffer first...
     if(txbuf.length && !_usb_write())
@@ -284,7 +284,7 @@ static bool usb_serialPutC (const uint8_t c)
 //
 static int32_t usb_serialGetC (void)
 {
-    uint_fast16_t tail = rxbuf.tail;
+    uint_fast32_t tail = rxbuf.tail;
 
     if(tail == rxbuf.head)
         return -1; // no data available
@@ -392,7 +392,7 @@ static void execute_realtime (uint_fast16_t state)
         if(avail > 0) while(avail--) {
             c = *dp++;
             if(!enqueue_realtime_command(c)) {
-                uint_fast16_t next_head = BUFNEXT(rxbuf.head, rxbuf);   // Get next head pointer
+                uint_fast32_t next_head = BUFNEXT(rxbuf.head, rxbuf);   // Get next head pointer
                 if(next_head == rxbuf.tail)                             // If buffer full
                     rxbuf.overflow = On;                                // flag overflow,
                 else {

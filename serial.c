@@ -69,7 +69,7 @@ typedef struct {
 #define UART_IRQ UART0_IRQ
 #endif
 
-static uint16_t tx_fifo_size;
+static uint32_t tx_fifo_size;
 static stream_tx_buffer_t txbuf = {0};
 static stream_rx_buffer_t rxbuf = {0};
 static const io_stream_t *serialInit (uint32_t baud_rate);
@@ -313,14 +313,14 @@ static bool uart_release (uint8_t instance)
 
 // ---
 
-static uint16_t serialRxCount (void)
+static uint32_t serialRxCount (void)
 {
-    uint_fast16_t head = rxbuf.head, tail = rxbuf.tail;
+    uint_fast32_t head = rxbuf.head, tail = rxbuf.tail;
 
     return BUFCOUNT(head, tail, RX_BUFFER_SIZE);
 }
 
-static uint16_t serialRxFree (void)
+static uint32_t serialRxFree (void)
 {
     return RX_BUFFER_SIZE - 1 - serialRxCount();
 }
@@ -330,7 +330,7 @@ static uint16_t serialRxFree (void)
 //
 static int32_t serialGetC (void)
 {
-    uint_fast16_t bptr = rxbuf.tail;
+    uint_fast32_t bptr = rxbuf.tail;
 
     if(bptr == rxbuf.head)
         return SERIAL_NO_DATA; // no data available
@@ -380,7 +380,7 @@ static void __not_in_flash_func(serialRxCancel) (void)
 
 static bool serialPutC (const uint8_t c)
 {
-    uint_fast16_t next_head;
+    uint_fast32_t next_head;
 
     if(!(UART->imsc & UART_UARTIMSC_TXIM_BITS)) {               // If the transmit interrupt is deactivated
         if(!(UART->fr & UART_UARTFR_TXFF_BITS)) {               // and if the TX FIFO is not full
@@ -411,7 +411,7 @@ static void serialWriteS (const char *data)
         serialPutC(c);
 }
 
-static void serialWrite (const uint8_t *s, uint16_t length)
+static void serialWrite (const uint8_t *s, uint32_t length)
 {
     uint8_t *ptr = (uint8_t *)s;
 
@@ -424,9 +424,9 @@ static bool serialSuspendInput (bool suspend)
     return stream_rx_suspend(&rxbuf, suspend);
 }
 
-static uint16_t serialTxCount (void) {
+static uint32_t serialTxCount (void) {
 
-    uint_fast16_t head = txbuf.head, tail = txbuf.tail;
+    uint_fast32_t head = txbuf.head, tail = txbuf.tail;
 
     return BUFCOUNT(head, tail, TX_BUFFER_SIZE) + ((UART->fr & UART_UARTFR_BUSY_BITS) ? 1 : 0);
 }
@@ -544,7 +544,7 @@ static void uart_interrupt_handler(void)
         while (!(UART->fr & UART_UARTFR_RXFE_BITS)) {
             data = UART->dr & 0xFF;                                     // Read input (use only 8 bits of data)
             if(!enqueue_realtime_command((uint8_t)data)) {
-                uint_fast16_t next_head = BUFNEXT(rxbuf.head, rxbuf);   // Get next head pointer
+                uint_fast32_t next_head = BUFNEXT(rxbuf.head, rxbuf);   // Get next head pointer
                 if(next_head == rxbuf.tail)                             // If buffer full
                     rxbuf.overflow = true;                              // flag overflow
                 else {
@@ -562,7 +562,7 @@ static void uart_interrupt_handler(void)
     // Interrupt if the TX FIFO is lower or equal to the empty TX FIFO threshold
     if(ctrl & UART_UARTMIS_TXMIS_BITS)
     {
-        uint_fast16_t tail = txbuf.tail;
+        uint_fast32_t tail = txbuf.tail;
 
         // As long as the TX FIFO is not full or the buffer is not empty
         while((!(UART->fr & UART_UARTFR_TXFF_BITS)) && (tail != txbuf.head)) {
@@ -585,7 +585,7 @@ static bool serial1PutC (const uint8_t c);
 //
 static int32_t serial1GetC (void)
 {
-    uint_fast16_t bptr = rx1buf.tail;
+    uint_fast32_t bptr = rx1buf.tail;
 
     if(bptr == rx1buf.head)
         return SERIAL_NO_DATA; // no data available
@@ -596,14 +596,14 @@ static int32_t serial1GetC (void)
     return data;
 }
 
-static uint16_t serial1RxCount (void)
+static uint32_t serial1RxCount (void)
 {
-    uint_fast16_t head = rx1buf.head, tail = rx1buf.tail;
+    uint_fast32_t head = rx1buf.head, tail = rx1buf.tail;
 
     return BUFCOUNT(head, tail, RX_BUFFER_SIZE);
 }
 
-static uint16_t serial1RxFree (void)
+static uint32_t serial1RxFree (void)
 {
     return RX_BUFFER_SIZE - 1 - serial1RxCount();
 }
@@ -616,7 +616,7 @@ static void serial1WriteS (const char *data)
         serial1PutC(c);
 }
 
-static void serial1Write (const uint8_t *s, uint16_t length)
+static void serial1Write (const uint8_t *s, uint32_t length)
 {
     uint8_t *ptr = (uint8_t *)s;
 
@@ -678,7 +678,7 @@ static void serial1RxFlush (void)
 
 static bool serial1PutC (const uint8_t c)
 {
-    uint_fast16_t next_head;
+    uint_fast32_t next_head;
 
     if(pio_sm_is_tx_fifo_empty(pio_uart1.pio_tx, pio_uart1.sm_tx) && tx1buf.tail == tx1buf.head) {
         pio_sm_put(pio_uart1.pio_tx, pio_uart1.sm_tx, (uint32_t)c);
@@ -701,13 +701,13 @@ static bool serial1PutC (const uint8_t c)
     return true;
 }
 
-static uint16_t serial1TxCount (void) {
+static uint32_t serial1TxCount (void) {
 
-    uint_fast16_t head = tx1buf.head, tail = tx1buf.tail;
+    uint_fast32_t head = tx1buf.head, tail = tx1buf.tail;
 
-    uint16_t count = BUFCOUNT(head, tail, TX_BUFFER_SIZE);
+    uint32_t count = BUFCOUNT(head, tail, TX_BUFFER_SIZE);
 
-    count += (uint16_t)pio_sm_get_tx_fifo_level(pio_uart1.pio_tx, pio_uart1.sm_tx);
+    count += (uint32_t)pio_sm_get_tx_fifo_level(pio_uart1.pio_tx, pio_uart1.sm_tx);
     if(pio_uart1.tx_deadline > time_us_64())
         count++;
 
@@ -813,7 +813,7 @@ static void __not_in_flash_func(uart1_interrupt_handler)(void)
             uint8_t data = *rxfifo_shift;
 
             if(!enqueue_realtime_command2(data)) {
-                uint_fast16_t next_head = BUFNEXT(rx1buf.head, rx1buf);
+                uint_fast32_t next_head = BUFNEXT(rx1buf.head, rx1buf);
 
                 if(next_head == rx1buf.tail)
                     rx1buf.overflow = true;
@@ -825,7 +825,7 @@ static void __not_in_flash_func(uart1_interrupt_handler)(void)
         }
     }
 
-    uint_fast16_t tail = tx1buf.tail;
+    uint_fast32_t tail = tx1buf.tail;
 
     while(!pio_sm_is_tx_fifo_full(pio_uart1.pio_tx, pio_uart1.sm_tx) && tail != tx1buf.head) {
         pio_sm_put(pio_uart1.pio_tx, pio_uart1.sm_tx, tx1buf.data[tail]);
@@ -859,7 +859,7 @@ static void serial1RxFlush (void)
 
 static bool serial1PutC (const uint8_t c)
 {
-    uint_fast16_t next_head;
+    uint_fast32_t next_head;
 
     if(!(UART_1->imsc & UART_UARTIMSC_TXIM_BITS)) {              // If the transmit interrupt is deactivated
         if(!(UART_1->fr & UART_UARTFR_TXFF_BITS)) {              // and if the TX FIFO is not full
@@ -882,9 +882,9 @@ static bool serial1PutC (const uint8_t c)
     return true;
 }
 
-static uint16_t serial1TxCount (void) {
+static uint32_t serial1TxCount (void) {
 
-    uint_fast16_t head = tx1buf.head, tail = tx1buf.tail;
+    uint_fast32_t head = tx1buf.head, tail = tx1buf.tail;
 
     return BUFCOUNT(head, tail, TX_BUFFER_SIZE) + ((UART_1->fr & UART_UARTFR_BUSY_BITS) ? 1 : 0);
 }
@@ -985,7 +985,7 @@ static void __not_in_flash_func(uart1_interrupt_handler)(void)
         while (!(UART_1->fr & UART_UARTFR_RXFE_BITS)) {
             data = UART_1->dr & 0xFF;                                   // Read input (use only 8 bits of data)
             if(!enqueue_realtime_command2((uint8_t)data)) {
-                uint_fast16_t next_head = BUFNEXT(rx1buf.head, rx1buf); // Get next head pointer
+                uint_fast32_t next_head = BUFNEXT(rx1buf.head, rx1buf); // Get next head pointer
                 if(next_head == rx1buf.tail)                            // If buffer full
                     rx1buf.overflow = true;                             // flag overflow
                 else {
@@ -999,7 +999,7 @@ static void __not_in_flash_func(uart1_interrupt_handler)(void)
     // Interrupt if the TX FIFO is lower or equal to the empty TX FIFO threshold
     if(ctrl & UART_UARTMIS_TXMIS_BITS)
     {
-        uint_fast16_t tail = tx1buf.tail;
+        uint_fast32_t tail = tx1buf.tail;
 
         // As long as the TX FIFO is not full or the buffer is not empty
         while((!(UART_1->fr & UART_UARTFR_TXFF_BITS)) && (tail != tx1buf.head)) {
@@ -1026,7 +1026,7 @@ static void __not_in_flash_func(uart1_interrupt_handler)(void)
 //
 static int32_t serial2GetC (void)
 {
-    uint_fast16_t bptr = rx2buf.tail;
+    uint_fast32_t bptr = rx2buf.tail;
 
     if(bptr == rx2buf.head)
         return SERIAL_NO_DATA; // no data available
@@ -1037,14 +1037,14 @@ static int32_t serial2GetC (void)
     return data;
 }
 
-static uint16_t serial2RxCount (void)
+static uint32_t serial2RxCount (void)
 {
-    uint_fast16_t head = rx2buf.head, tail = rx2buf.tail;
+    uint_fast32_t head = rx2buf.head, tail = rx2buf.tail;
 
     return BUFCOUNT(head, tail, RX_BUFFER_SIZE);
 }
 
-static uint16_t serial2RxFree (void)
+static uint32_t serial2RxFree (void)
 {
     return RX_BUFFER_SIZE - 1 - serial2RxCount();
 }
@@ -1053,7 +1053,7 @@ static uint16_t serial2RxFree (void)
 
 static bool serial2PutC (const uint8_t c)
 {
-    uint_fast16_t next_head;
+    uint_fast32_t next_head;
 
     if(pio_sm_is_tx_fifo_empty(ppio_uart2.pio_tx, ppio_uart2.sm_tx) && tx2buf.tail == tx2buf.head) {
         pio_sm_put(ppio_uart2.pio_tx, ppio_uart2.sm_tx, (uint32_t)c);
@@ -1084,7 +1084,7 @@ static void serial2WriteS (const char *data)
         serial2PutC(c);
 }
 
-static void serial2Write (const uint8_t *s, uint16_t length)
+static void serial2Write (const uint8_t *s, uint32_t length)
 {
     uint8_t *ptr = (uint8_t *)s;
 
@@ -1092,13 +1092,13 @@ static void serial2Write (const uint8_t *s, uint16_t length)
         serial2PutC(*ptr++);
 }
 
-static uint16_t serial2TxCount (void) {
+static uint32_t serial2TxCount (void) {
 
-    uint_fast16_t head = tx2buf.head, tail = tx2buf.tail;
+    uint_fast32_t head = tx2buf.head, tail = tx2buf.tail;
 
-    uint16_t count = BUFCOUNT(head, tail, TX_BUFFER_SIZE);
+    uint32_t count = BUFCOUNT(head, tail, TX_BUFFER_SIZE);
 
-    count += (uint16_t)pio_sm_get_tx_fifo_level(ppio_uart2.pio_tx, ppio_uart2.sm_tx);
+    count += (uint32_t)pio_sm_get_tx_fifo_level(ppio_uart2.pio_tx, ppio_uart2.sm_tx);
     if(ppio_uart2.tx_deadline > time_us_64())
         count++;
 
@@ -1265,7 +1265,7 @@ static void __not_in_flash_func(uart2_interrupt_handler)(void)
             uint8_t data = *rxfifo_shift;
 
             if(!enqueue_realtime_command3(data)) {
-                uint_fast16_t next_head = BUFNEXT(rx2buf.head, rx2buf);
+                uint_fast32_t next_head = BUFNEXT(rx2buf.head, rx2buf);
 
                 if(next_head == rx2buf.tail)
                     rx2buf.overflow = true;
@@ -1279,7 +1279,7 @@ static void __not_in_flash_func(uart2_interrupt_handler)(void)
 
 #ifdef UART_2_TX_PIN
 
-    uint_fast16_t tail = tx2buf.tail;
+    uint_fast32_t tail = tx2buf.tail;
 
     while(!pio_sm_is_tx_fifo_full(ppio_uart2.pio_tx, ppio_uart2.sm_tx) && tail != tx2buf.head) {
         pio_sm_put(ppio_uart2.pio_tx, ppio_uart2.sm_tx, tx2buf.data[tail]);

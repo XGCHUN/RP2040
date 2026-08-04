@@ -28,7 +28,8 @@
 #define BOARD_NAME "CV01"
 
 // === PSRAM ===
-#define PICO_RP2350_PSRAM_CS_PIN 19
+#undef PICO_PSRAM_CS_PIN
+#define PICO_PSRAM_CS_PIN 19
 
 // 4 axes: X(galvo), Y(galvo), Z(stepper), A(stepper)
 #undef N_AXIS
@@ -154,3 +155,11 @@
 #undef TX_BUFFER_SIZE
 #define TX_BUFFER_SIZE 64 * 1024  // must be a power of 2
 
+#undef  SEGMENT_BUFFER_SIZE
+#define SEGMENT_BUFFER_SIZE 1024
+
+#undef DEFAULT_PLANNER_BUFFER_BLOCKS 
+#define DEFAULT_PLANNER_BUFFER_BLOCKS 512
+
+#undef ADAPTIVE_MULTI_AXIS_STEP_SMOOTHING
+#define ADAPTIVE_MULTI_AXIS_STEP_SMOOTHING 0
