@@ -83,10 +83,10 @@ static float compute_scale(uint_fast8_t axis_idx)
 
 void xy2_100_init(void)
 {
-    xy2_pio = pio0;
-
-    xy2_offset = pio_add_program(xy2_pio, &xy2_100_program);
+    // Use PIO2 (RP2350-only) to avoid conflicts with step_pulse (PIO0/1) and stepper_timer (PIO1)
+    xy2_pio = pio2;
     xy2_sm = pio_claim_unused_sm(xy2_pio, true);
+    uint xy2_offset = pio_add_program(xy2_pio, &xy2_100_program);
     xy2_100_program_init(xy2_pio, xy2_sm, xy2_offset, XY2_DATA_0_PIN, XY2_CLK_PIN);
 
     // Send initial center position
