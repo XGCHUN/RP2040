@@ -51,6 +51,7 @@
 #endif
 #if defined (RP2040) || defined(RP2350) 
 #include "hardware/structs/qmi.h"
+#include "hardware/psram.h"
 #include "hardware/structs/xip_ctrl.h"
 #endif
 
@@ -2729,73 +2730,6 @@ uint32_t get_free_mem (void)
     return &__StackLimit - &__bss_end__ - mallinfo().uordblks;
 }
 
-#if defined (RP2040) || defined(RP2350) 
-
-static uint32_t psram_size_detected = 0;
-
-uint32_t __no_inline_not_in_flash_func(get_psram_size)(void)
-{
-    if (psram_size_detected)
-        return psram_size_detected;
-
-#ifdef PICO_RP2350_PSRAM_CS_PIN
-    uint cs_pin = PICO_RP2350_PSRAM_CS_PIN;
-#elif defined(PIMORONI_PGA2350_PSRAM_CS_PIN)
-    uint cs_pin = PIMORONI_PGA2350_PSRAM_CS_PIN;
-#elif defined(PIMORONI_PICO_PLUS2_PSRAM_CS_PIN)
-    uint cs_pin = PIMORONI_PICO_PLUS2_PSRAM_CS_PIN;
-#else
-    return 0;
-#endif
-
-    gpio_set_function(cs_pin, GPIO_FUNC_XIP_CS1);
-
-    uint32_t save_irq = save_and_disable_interrupts();
-
-    qmi_hw->direct_csr = 30 << QMI_DIRECT_CSR_CLKDIV_LSB | QMI_DIRECT_CSR_EN_BITS;
-    while (qmi_hw->direct_csr & QMI_DIRECT_CSR_BUSY_BITS) {}
-
-    // Exit QPI mode if already in it
-    qmi_hw->direct_csr |= QMI_DIRECT_CSR_ASSERT_CS1N_BITS;
-    qmi_hw->direct_tx = QMI_DIRECT_TX_OE_BITS | QMI_DIRECT_TX_IWIDTH_VALUE_Q << QMI_DIRECT_TX_IWIDTH_LSB | 0xf5;
-    while (qmi_hw->direct_csr & QMI_DIRECT_CSR_BUSY_BITS) {}
-    (void)qmi_hw->direct_rx;
-    qmi_hw->direct_csr &= ~QMI_DIRECT_CSR_ASSERT_CS1N_BITS;
-
-    // Read ID (command 0x9F)
-    qmi_hw->direct_csr |= QMI_DIRECT_CSR_ASSERT_CS1N_BITS;
-    uint8_t kgd = 0, eid = 0;
-    for (size_t i = 0; i < 12; i++) {
-        qmi_hw->direct_tx = (i == 0) ? 0x9f : 0xff;
-        while (qmi_hw->direct_csr & QMI_DIRECT_CSR_BUSY_BITS) {}
-        uint8_t val = (uint8_t)qmi_hw->direct_rx;
-        if (i == 5) kgd = val;
-        if (i == 6) eid = val;
-    }
-    qmi_hw->direct_csr &= ~QMI_DIRECT_CSR_ASSERT_CS1N_BITS;
-
-    qmi_hw->direct_csr &= ~QMI_DIRECT_CSR_EN_BITS;
-    restore_interrupts(save_irq);
-
-    if (kgd != 0x5D) {
-        psram_size_detected = 0;
-        return 0;
-    }
-
-    // Decode size from EID
-    psram_size_detected = 1024 * 1024; // base 1MB
-    uint8_t size_id = eid >> 5;
-    if (eid == 0x26 || size_id == 2)
-        psram_size_detected *= 8;
-    else if (size_id == 0)
-        psram_size_detected *= 2;
-    else if (size_id == 1)
-        psram_size_detected *= 4;
-
-    return psram_size_detected;
-}
-
-#endif // defined (RP2040) || defined(RP2350) 
 
 #if STEP_PORT == GPIO_PIO_1
 
@@ -2832,7 +2766,7 @@ static void onReportOptions (bool newopt)
     if(!newopt) {
         report_plugin("Bootloader Entry", "0.01");
 #if defined(RP2040) || defined(RP2350) 
-        uint32_t psram_sz = get_psram_size();
+        size_t psram_sz = psram_get_size();
         if (psram_sz) {
             hal.stream.write("[PSRAM:");
             hal.stream.write(uitoa(psram_sz / 1024));

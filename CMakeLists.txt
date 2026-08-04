@@ -255,6 +255,7 @@ target_link_libraries(grblHAL PRIVATE
  hardware_pwm
  hardware_clocks
  hardware_flash
+ hardware_psram
 )
 
 pico_add_extra_outputs(grblHAL)
