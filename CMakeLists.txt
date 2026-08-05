@@ -115,6 +115,7 @@ endif()
 
 pico_generate_pio_header(grblHAL ${CMAKE_CURRENT_LIST_DIR}/driverPIO.pio)
 pico_generate_pio_header(grblHAL ${CMAKE_CURRENT_LIST_DIR}/xy2_100.pio)
+pico_enable_stdio_uart(grblHAL 1)
 
 if(PICO_BOARD STREQUAL "pico" OR PICO_BOARD STREQUAL "pico_w")
 target_compile_definitions(grblHAL PUBLIC RP_MCU=2040)
@@ -126,6 +127,8 @@ target_compile_definitions(grblHAL PUBLIC RP_MCU=2350)
 endif()
 target_compile_definitions(grblHAL PUBLIC RP2040)
 target_compile_definitions(grblHAL PUBLIC NEW_FATFS)
+# Flash SPI divider for 300MHz overclock (keeps flash at 75MHz)
+target_compile_definitions(grblHAL PUBLIC PICO_FLASH_SPI_CLKDIV=4)
 #target_compile_definitions(grblHAL PUBLIC LITTLEFS_ENABLE=1)
 
 if(ADD_WIFI)

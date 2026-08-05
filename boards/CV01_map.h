@@ -153,7 +153,7 @@
 
 
 #undef TX_BUFFER_SIZE
-#define TX_BUFFER_SIZE 64 * 1024  // must be a power of 2
+#define TX_BUFFER_SIZE 32 * 1024  // must be a power of 2
 
 #undef  SEGMENT_BUFFER_SIZE
 #define SEGMENT_BUFFER_SIZE 1024
@@ -163,3 +163,4 @@
 
 #undef ADAPTIVE_MULTI_AXIS_STEP_SMOOTHING
 #define ADAPTIVE_MULTI_AXIS_STEP_SMOOTHING 0
+

@@ -43,7 +43,7 @@
 
 //#if USB_SERIAL_CDC == 2
 
-#define BLOCK_RX_BUFFER_SIZE 20
+#define BLOCK_RX_BUFFER_SIZE 1024
 
 static stream_block_tx_buffer_t txbuf = {0};
 static stream_rx_buffer_t rxbuf;
