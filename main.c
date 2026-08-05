@@ -31,7 +31,7 @@ int main (void)
     // Overclock to 300MHz
     vreg_set_voltage(VREG_VOLTAGE_1_30);
     sleep_ms(2);
-    set_sys_clock_khz(300000, true);
+    set_sys_clock_khz(400000, true);
 
     grbl_enter();
 }

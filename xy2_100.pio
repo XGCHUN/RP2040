@@ -25,21 +25,19 @@
 .side_set 2
 
 .wrap_target
-    ; --- First half: 10 bit-pairs from word 0 ---
-    pull block          side 0b00   ; Get word 0, SYNC=0 CLK=0 (inter-frame gap)
-    set x, 9           side 0b10   ; 10 pairs from this word, raise SYNC
+    ; --- Wait for data, start frame ---
+    pull block          side 0b00   ; Get word 0 from FIFO, SYNC=0 CLK=0 (inter-frame gap)
+    set x, 19          side 0b10   ; 20 bit-pairs total, raise SYNC
 loop0:
-    out pins, 2         side 0b10   ; Output 2 bits (DATA_0 + DATA_1), CLK=0
-    jmp x-- loop0       side 0b11   ; CLK rising edge
-
-    ; --- Second half: 10 bit-pairs from word 1 ---
-    pull block          side 0b10   ; Get word 1, keep SYNC high
-    set x, 9           side 0b10   ; 10 more pairs
-loop1:
     out pins, 2         side 0b10   ; Output 2 bits, CLK=0
-    jmp x-- loop1       side 0b11   ; CLK rising edge
+    jmp x-- loop0       side 0b11   ; CLK rising edge
+    ; After 10 out's, autopull loads word 1 from FIFO transparently (no extra cycle)
+    ; After 20 out's (x exhausted), loop exits
 
-    nop                 side 0b00   ; Frame done: SYNC=0, CLK=0
+    ; Inter-frame delay: ~10us gap (SYNC=0, CLK=0)
+    set y, 31           side 0b00 [7]  ; Frame done + 8 cycles delay
+delay:
+    jmp y-- delay       side 0b00      ; 32 iterations = 32 cycles
 .wrap
 
 % c-sdk {
@@ -58,8 +56,8 @@ static inline void xy2_100_program_init(PIO pio, uint sm, uint offset,
     // side-set pins: 2 consecutive (CLK, SYNC)
     sm_config_set_sideset_pins(&c, clk_pin);
 
-    // Shift OSR left (MSB first), no autopull (manual pull in PIO program)
-    sm_config_set_out_shift(&c, false, false, 32);
+    // Shift OSR left (MSB first), autopull at 20 bits (refill from FIFO when 20 bits shifted out)
+    sm_config_set_out_shift(&c, false, true, 20);
 
     // Join TX FIFO for 8-deep buffering
     sm_config_set_fifo_join(&c, PIO_FIFO_JOIN_TX);
