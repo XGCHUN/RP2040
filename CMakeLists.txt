@@ -261,6 +261,15 @@ target_link_libraries(grblHAL PRIVATE
  hardware_psram
 )
 
+add_compile_options(
+    -ffast-math
+    -flto
+)
+
+add_link_options(
+    -flto
+)
+
 pico_add_extra_outputs(grblHAL)
 
 unset(PICO_BOARD CACHE)
