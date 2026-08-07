@@ -24,15 +24,19 @@
 #include <math.h>
 #include <string.h>
 #include <stdlib.h>
+#include <stdio.h>
 #include <time.h>
 #include <malloc.h>
 
 #include "pico/time.h"
 #include "pico/bootrom.h"
+#include "pico/multicore.h"
+#include "pico/stdlib.h"
 #include "hardware/dma.h"
 #include "hardware/timer.h"
 #include "hardware/irq.h"
 #include "hardware/clocks.h"
+#include "hardware/vreg.h"
 #include "hardware/spi.h"
 #include "hardware/structs/systick.h"
 #include "hardware/structs/iobank0.h"
@@ -2797,10 +2801,75 @@ void board_ports_init (void)
 }
 #endif
 
+// ============================================================================
+// Core1: Non-realtime services (WiFi, WebUI, status reporting)
+// All IRQs registered here will fire on Core1 only.
+// ============================================================================
+
+static volatile bool core0_ready = false;  // Set by Core0 after grblHAL init done
+
+static const char *core1_state_name (sys_state_t state)
+{
+    if (state == STATE_IDLE)  return "Idle";
+    if (state & STATE_CYCLE) return "Run";
+    if (state & STATE_HOLD)  return "Hold";
+    if (state & STATE_HOMING) return "Home";
+    if (state & STATE_ALARM) return "Alarm";
+    if (state & STATE_JOG)   return "Jog";
+    return "?";
+}
+
+static void core1_entry (void)
+{
+    // Wait until Core0 finishes grblHAL initialization
+    while (!core0_ready)
+        tight_loop_contents();
+
+    // --- Core1 peripheral init goes here ---
+    // WiFi, Ethernet, WebUI poll, etc. will be initialized here
+    // Their IRQs will automatically bind to Core1.
+
+    // TODO: wifi_init(), ethernet_init(), webui_init()
+
+    // --- Core1 main loop ---
+    uint32_t report_ms = 0;
+
+    while (1) {
+        // TODO: WiFi/Ethernet poll loop
+        // if (wifi_enabled) cyw43_arch_poll();
+        // if (ethernet_enabled) wiznet_poll();
+
+        // Status report every 200ms
+        uint32_t now = time_us_32() / 1000;
+        if (now - report_ms >= 200) {
+            report_ms = now;
+
+            sys_state_t state = state_get();
+            int32_t x = sys.position[X_AXIS];
+            int32_t y = sys.position[Y_AXIS];
+            int32_t z = sys.position[Z_AXIS];
+
+            printf("<Core1|%s|MPos:%ld,%ld,%ld>\n", core1_state_name(state), x, y, z);
+        }
+
+        // Yield briefly to avoid burning CPU when nothing to do
+        tight_loop_contents();
+    }
+}
+
 // Initialize HAL pointers, setup serial comms and enable EEPROM
 // NOTE: grblHAL is not yet configured (from EEPROM data), driver_setup() will be called when done
 bool driver_init (void)
 {
+    // --- Overclock & stdio init ---
+    vreg_set_voltage(VREG_VOLTAGE_1_30);
+    sleep_ms(2);
+    set_sys_clock_khz(400000, true);
+    stdio_init_all();
+
+    // --- Launch Core1 ---
+    multicore_launch_core1(core1_entry);
+
     // Enable EEPROM and serial port here for grblHAL to be able to configure itself and report any errors
 
     // irq_set_exclusive_handler(-1, systick_handler);

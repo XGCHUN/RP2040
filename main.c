@@ -1,6 +1,6 @@
 /*
 
-  main.c - driver code for RP2040 ARM processors
+  main.c - driver code for RP2350 ARM processors
 
   Part of grblHAL
 
@@ -22,16 +22,8 @@
 */
 
 #include "grbl/grbllib.h"
-#include "hardware/clocks.h"
-#include "hardware/vreg.h"
-#include "pico/stdlib.h"
 
 int main (void)
 {
-    // Overclock to 300MHz
-    vreg_set_voltage(VREG_VOLTAGE_1_30);
-    sleep_ms(2);
-    set_sys_clock_khz(400000, true);
-
     grbl_enter();
 }
