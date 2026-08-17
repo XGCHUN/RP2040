@@ -10,6 +10,8 @@
 #ifndef _BOARDS_RP2350_PLUS_W_H
 #define _BOARDS_RP2350_PLUS_W_H
 
+pico_board_cmake_set(PICO_PLATFORM, rp2350)
+
 // --- Flash ---
 #ifndef PICO_FLASH_SPI_CLKDIV
 #define PICO_FLASH_SPI_CLKDIV 4
@@ -22,6 +24,15 @@
 // --- PSRAM ---
 #ifndef PICO_PSRAM_CS_PIN
 #define PICO_PSRAM_CS_PIN 47
+#endif
+
+#ifndef PICO_PSRAM_SIZE_BYTES
+#define PICO_PSRAM_SIZE_BYTES (8 * 1024 * 1024)
+#endif
+
+// Auto-detect PSRAM size at runtime (overrides PICO_PSRAM_SIZE_BYTES if actual is smaller)
+#ifndef PICO_AUTO_DETECT_PSRAM_SIZE
+#define PICO_AUTO_DETECT_PSRAM_SIZE 1
 #endif
 
 // --- Platform identification (tells SDK this is RP2350, not RP2040) ---
