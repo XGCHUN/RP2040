@@ -32,7 +32,8 @@
 //#define BOARD_PICO_CNC
 //#define BOARD_RP23U5XBB
 //#define BOARD_CV00              // 8-axis galvo laser: U/V galvo + XYZABC steppers
-#define BOARD_CV01              // 4-axis galvo laser: X/Y galvo + ZA steppers
+//#define BOARD_CV01              // 4-axis galvo laser: X/Y galvo + ZA steppers
+#define BOARD_RP2350_PLUS_W       // 4-axis galvo laser: X/Y galvo + ZA steppers. with WiFi and BT
 //#define BOARD_SLB_LITE
 //#define BOARD_CNC_BOOSTERPACK
 //#define BOARD_CITOH_CX6000    // C.ITOH CX-6000 HPGL plotter

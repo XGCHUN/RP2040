@@ -26,7 +26,15 @@ option(ADD_MQTT "Add MQTT client API" OFF)
 option(AddMyPlugin "Add my_plugin.c to build" OFF)
 
 # Select the correct board in VSCode, the following line will be updated accordingly
-set(PICO_BOARD pimoroni_pga2350 CACHE STRING "Board type")
+set(PICO_BOARD rp2350_plus_w CACHE STRING "Board type")
+
+# Official boards with Wi-Fi: pico_w, pico2_w, pimoroni_pico_plus2_w_rp2350
+# Custom board (needs pico_boards/ header): rp2350_plus_w
+# Only needed for custom boards not in the SDK board list
+if(PICO_BOARD STREQUAL "rp2350_plus_w")
+    set(PICO_BOARD_HEADER_DIRS ${CMAKE_CURRENT_LIST_DIR}/pico_boards CACHE STRING "Custom board headers")
+    set(PICO_PLATFORM rp2350-arm-s CACHE STRING "RP2350 ARM Secure")
+endif()
 
 include(pico_sdk_import.cmake)
 

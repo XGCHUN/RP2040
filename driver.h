@@ -170,6 +170,8 @@
   #include "boards/CV00_map.h"
 #elif defined(BOARD_CV01)
   #include "boards/CV01_map.h"
+  #elif defined(BOARD_RP2350_PLUS_W)
+  #include "boards/rp2350_plus_w_map.h"
 #elif defined(BOARD_PICOBOB)
   #include "boards/picobob_map.h"
 #elif defined(BOARD_PICOBOB_G540)
