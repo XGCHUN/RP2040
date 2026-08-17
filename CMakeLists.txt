@@ -135,8 +135,6 @@ target_compile_definitions(grblHAL PUBLIC RP_MCU=2350)
 endif()
 target_compile_definitions(grblHAL PUBLIC RP2040)
 target_compile_definitions(grblHAL PUBLIC NEW_FATFS)
-# Flash SPI divider for 300MHz overclock (keeps flash at 75MHz)
-target_compile_definitions(grblHAL PUBLIC PICO_FLASH_SPI_CLKDIV=4)
 #target_compile_definitions(grblHAL PUBLIC LITTLEFS_ENABLE=1)
 
 if(ADD_WIFI)
