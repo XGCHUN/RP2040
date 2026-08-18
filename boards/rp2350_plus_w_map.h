@@ -155,10 +155,10 @@
 
 
 #undef TX_BUFFER_SIZE
-#define TX_BUFFER_SIZE 32 * 1024  // must be a power of 2
+#define TX_BUFFER_SIZE 16 * 1024  // must be a power of 2
 
 #undef  SEGMENT_BUFFER_SIZE
-#define SEGMENT_BUFFER_SIZE 1024
+#define SEGMENT_BUFFER_SIZE 512
 
 #undef DEFAULT_PLANNER_BUFFER_BLOCKS 
 #define DEFAULT_PLANNER_BUFFER_BLOCKS 512
@@ -168,3 +168,33 @@
 
 // === CYW43 pins defined in pico_boards/rp2350_plus_w.h (SDK board header) ===
 // Do NOT redefine here — SDK reads them before grblHAL headers are included.
+
+#undef DEFAULT_X_MAX_RATE
+#define  DEFAULT_X_MAX_RATE 500000.0f
+
+#undef DEFAULT_Y_MAX_RATE
+#define  DEFAULT_Y_MAX_RATE 500000.0f
+
+#undef DEFAULT_Z_MAX_RATE
+#define  DEFAULT_Z_MAX_RATE 500.0f
+
+#undef DEFAULT_X_ACCELERATION
+#define DEFAULT_X_ACCELERATION 500000.0f
+
+#undef DEFAULT_Y_ACCELERATION
+#define DEFAULT_Y_ACCELERATION 500000.0f
+
+#undef DEFAULT_Z_ACCELERATION
+#define DEFAULT_Z_ACCELERATION 50.0f
+
+#undef DEFAULT_X_MAX_TRAVEL
+#define DEFAULT_X_MAX_TRAVEL 110.0f 
+
+#undef DEFAULT_Y_MAX_TRAVEL
+#define DEFAULT_Y_MAX_TRAVEL 110.0f 
+
+#undef DEFAULT_Z_MAX_TRAVEL
+#define DEFAULT_Z_MAX_TRAVEL 200.0f 
+
+#define TELNET_ENABLE 0
+#define WEBSOCKET_ENABLE 0

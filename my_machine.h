@@ -173,4 +173,46 @@
 #endif
 #endif // WIFI_ENABLE
 
+#ifdef BOARD_CNC_BOOSTERPACK
+  #include "boards/cnc_boosterpack_map.h"
+#elif defined(BOARD_PICO_CNC)
+  #include "boards/pico_cnc_map.h"
+#elif defined(BOARD_RP23U5XBB)
+  #include "boards/RP2350B_5X_map.h"
+#elif defined(BOARD_CV00)
+  #include "boards/CV00_map.h"
+#elif defined(BOARD_CV01)
+  #include "boards/CV01_map.h"
+  #elif defined(BOARD_RP2350_PLUS_W)
+  #include "boards/rp2350_plus_w_map.h"
+#elif defined(BOARD_PICOBOB)
+  #include "boards/picobob_map.h"
+#elif defined(BOARD_PICOBOB_G540)
+  #include "boards/picobob_g540_map.h"
+#elif defined(BOARD_PICOBOB_DLX)
+  #include "boards/picobob_dlx_map.h"
+#elif defined(BOARD_PICOBOB_DLX_G540)
+  #include "boards/picobob_dlx_g540_map.h"
+#elif defined(BOARD_PICOHAL)
+  #include "boards/picohal_map.h"
+#elif defined(BOARD_FLEXIHAL2350)
+  #include "boards/flexihal2350_map.h"
+#elif defined(BOARD_BTT_SKR_PICO_10) || defined(BOARD_BTT_SKR_PICO_10_HOTWIRE)
+  #include "boards/btt_skr_pico_10_map.h"
+#elif defined BOARD_CITOH_CX6000
+  #include "boards/citoh_cx6000_map.h"
+#elif defined(BOARD_MY_MACHINE)
+  #include "boards/my_machine_map.h"
+#elif defined(BOARD_GENERIC_4AXIS)
+  #include "boards/generic_map_4axis.h"
+#elif defined(BOARD_GENERIC_8AXIS)
+  #include "boards/generic_map_8axis.h"
+#elif defined(BOARD_SLB_LITE)
+  #include "boards/slblite_map.h"
+#elif defined(BOARD_BOLANGSK)
+  #include "boards/bolangsk_map.h"
+#else // default board
+  #include "boards/generic_map.h"
+#endif
+
 /**/
