@@ -16,9 +16,20 @@ cmake_minimum_required(VERSION 3.13)
 
 option(ADD_HPGL "Add HPGL plugin" OFF)
  # Note: WiFi and Ethernet cannot be enabled at the same time!
-option(ADD_WIFI "Add WiFi networking" OFF)
+option(ADD_WIFI "Add CYW43 WiFi networking" OFF)
 option(ADD_ETHERNET "Add Ethernet networking" OFF)
+option(ADD_ESP_HOSTED "Add ESP-Hosted WiFi coprocessor networking" OFF)
 option(ADD_BLUETOOTH "Add Bluetooth" OFF)
+
+set(_network_backend_count 0)
+foreach(_backend ADD_WIFI ADD_ETHERNET ADD_ESP_HOSTED)
+    if(${_backend})
+        math(EXPR _network_backend_count "${_network_backend_count} + 1")
+    endif()
+endforeach()
+if(_network_backend_count GREATER 1)
+    message(FATAL_ERROR "ADD_WIFI, ADD_ETHERNET and ADD_ESP_HOSTED are mutually exclusive")
+endif()
 # Set LWIP_DIR below to the root path of lwIP sources when the following is set ON!
 option(ADD_mDNS "Add mDNS service" OFF)
 option(ADD_MQTT "Add MQTT client API" OFF)
@@ -38,7 +49,7 @@ endif()
 
 include(pico_sdk_import.cmake)
 
-if(ADD_WIFI OR ADD_ETHERNET)
+if(ADD_WIFI OR ADD_ETHERNET OR ADD_ESP_HOSTED)
     include(networking/CMakeLists.txt)
     include(webui/CMakeLists.txt)
     if(ADD_mDNS OR ADD_MQTT)
@@ -163,7 +174,24 @@ if(ADD_ETHERNET)
     )
 endif()
 
-if(ADD_WIFI OR ADD_ETHERNET)
+if(ADD_ESP_HOSTED)
+    target_compile_definitions(grblHAL PUBLIC
+     ESP_HOSTED_ENABLE=1
+     CYW43_LWIP=0
+     LWIP_NOASSERT
+     HTTP_ENABLE=1
+     WEBUI_ENABLE=1
+     WEBSOCKET_ENABLE=1
+     TELNET_ENABLE=0
+     SDCARD_ENABLE=1
+    )
+    target_link_libraries(grblHAL PRIVATE
+     pico_lwip
+     pico_lwip_nosys
+    )
+endif()
+
+if(ADD_WIFI OR ADD_ETHERNET OR ADD_ESP_HOSTED)
     target_compile_definitions(grblHAL PUBLIC WEBUI_AUTO_REPORT_INTERVAL=0)
     if(ADD_mDNS)
         target_compile_definitions(grblHAL PUBLIC LWIP_IGMP=1)
@@ -191,22 +219,32 @@ if(ADD_WIFI OR ADD_ETHERNET)
 endif()
 
 if(ADD_BLUETOOTH)
-    target_compile_definitions(grblHAL PUBLIC BLUETOOTH_ENABLE=1)
     target_compile_definitions(grblHAL PUBLIC NDEBUG)
-    target_sources(grblHAL PRIVATE
-     bt_native.c
-    )
     target_include_directories(grblHAL PRIVATE ${PICO_SDK_PATH}/lib/btstack/src)
-    target_link_libraries(grblHAL PRIVATE
-     pico_btstack_classic
-     pico_btstack_ble
-     pico_btstack_cyw43
-    )
-    if(NOT ADD_WIFI)
-        target_compile_definitions(grblHAL PUBLIC CYW43_LWIP=0)
+    if(ADD_ESP_HOSTED)
+        target_compile_definitions(grblHAL PUBLIC ESP_HOSTED_BLE_ENABLE=1)
         target_link_libraries(grblHAL PRIVATE
-         pico_cyw43_arch_poll
+         pico_btstack_ble
         )
+        pico_btstack_make_gatt_header(grblHAL PRIVATE
+         ${CMAKE_CURRENT_LIST_DIR}/plugins/esp_hosted/esp_hosted_provisioning.gatt
+        )
+    else()
+        target_compile_definitions(grblHAL PUBLIC BLUETOOTH_ENABLE=1)
+        target_sources(grblHAL PRIVATE
+         bt_native.c
+        )
+        target_link_libraries(grblHAL PRIVATE
+         pico_btstack_classic
+         pico_btstack_ble
+         pico_btstack_cyw43
+        )
+        if(NOT ADD_WIFI)
+            target_compile_definitions(grblHAL PUBLIC CYW43_LWIP=0)
+            target_link_libraries(grblHAL PRIVATE
+             pico_cyw43_arch_poll
+            )
+        endif()
     endif()
 endif()
 
@@ -273,6 +311,7 @@ pico_add_extra_outputs(grblHAL)
 unset(PICO_BOARD CACHE)
 unset(ADD_WIFI CACHE)
 unset(ADD_ETHERNET CACHE)
+unset(ADD_ESP_HOSTED CACHE)
 unset(ADD_BLUETOOTH CACHE)
 unset(ADD_HPGL CACHE)
 unset(ADD_mDNS CACHE)

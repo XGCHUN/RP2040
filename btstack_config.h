@@ -3,15 +3,23 @@
 
 // BTstack features that can be enabled
 #define ENABLE_LE_PERIPHERAL
+#if !ESP_HOSTED_BLE_ENABLE
+// Hosted provisioning is a BLE peripheral only; the following are unused there.
 #define ENABLE_LE_CENTRAL
 #define ENABLE_L2CAP_LE_CREDIT_BASED_FLOW_CONTROL_MODE
+#endif
 #define ENABLE_LOG_INFO
 #define ENABLE_LOG_ERROR
 #define ENABLE_PRINTF_HEXDUMP
 
 // BTstack configuration. buffers, sizes, ...
 #define HCI_OUTGOING_PRE_BUFFER_SIZE 4
+#if ESP_HOSTED_BLE_ENABLE
+// ESP-Hosted HCI frames cap the wire payload; keep ACL within that limit.
+#define HCI_ACL_PAYLOAD_SIZE (1024 + 4)
+#else
 #define HCI_ACL_PAYLOAD_SIZE (1691 + 4)
+#endif
 #define HCI_ACL_CHUNK_SIZE_ALIGNMENT 4
 #define MAX_NR_AVDTP_CONNECTIONS 1
 #define MAX_NR_AVDTP_STREAM_ENDPOINTS 1
@@ -68,6 +76,8 @@
 // To get the audio demos working even with HCI dump at 115200, this truncates long ACL packetws
 //#define HCI_DUMP_STDOUT_MAX_SIZE_ACL 100
 
+#if !ESP_HOSTED_BLE_ENABLE
 #define ENABLE_L2CAP_ENHANCED_RETRANSMISSION_MODE
+#endif
 
 #endif // MICROPY_INCLUDED_EXTMOD_BTSTACK_BTSTACK_CONFIG_H
