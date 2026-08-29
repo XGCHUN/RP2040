@@ -1,0 +1,75 @@
+/* ESP-Hosted RP2350 board configuration. Override from the board map. */
+#pragma once
+
+#ifndef ESP_HOSTED_SPI_PORT
+#define ESP_HOSTED_SPI_PORT 1
+#endif
+#ifndef ESP_HOSTED_SPI_CLOCK_HZ
+#define ESP_HOSTED_SPI_CLOCK_HZ 10000000u
+#endif
+#ifndef ESP_HOSTED_SPI_MODE
+#define ESP_HOSTED_SPI_MODE 3
+#endif
+#ifndef ESP_HOSTED_SPI_SCK_PIN
+#define ESP_HOSTED_SPI_SCK_PIN 0xFFu
+#endif
+#ifndef ESP_HOSTED_SPI_MOSI_PIN
+#define ESP_HOSTED_SPI_MOSI_PIN 0xFFu
+#endif
+#ifndef ESP_HOSTED_SPI_MISO_PIN
+#define ESP_HOSTED_SPI_MISO_PIN 0xFFu
+#endif
+#ifndef ESP_HOSTED_SPI_CS_PIN
+#define ESP_HOSTED_SPI_CS_PIN 0xFFu
+#endif
+#ifndef ESP_HOSTED_HANDSHAKE_PIN
+#define ESP_HOSTED_HANDSHAKE_PIN 0xFFu
+#endif
+#ifndef ESP_HOSTED_DATA_READY_PIN
+#define ESP_HOSTED_DATA_READY_PIN 0xFFu
+#endif
+#ifndef ESP_HOSTED_RESET_PIN
+#define ESP_HOSTED_RESET_PIN 0xFFu
+#endif
+#ifndef ESP_HOSTED_HANDSHAKE_ACTIVE
+#define ESP_HOSTED_HANDSHAKE_ACTIVE 1
+#endif
+#ifndef ESP_HOSTED_DATA_READY_ACTIVE
+#define ESP_HOSTED_DATA_READY_ACTIVE 1
+#endif
+#ifndef ESP_HOSTED_RESET_ACTIVE
+#define ESP_HOSTED_RESET_ACTIVE 0
+#endif
+
+/* This host implementation is wire-compatible with ESP-Hosted 2.12.x. */
+#define ESP_HOSTED_PROTOCOL_MAJOR 2u
+#define ESP_HOSTED_PROTOCOL_MINOR 12u
+
+#ifndef ESP_HOSTED_TX_QUEUE_DEPTH
+#define ESP_HOSTED_TX_QUEUE_DEPTH 4
+#endif
+#ifndef ESP_HOSTED_RX_QUEUE_DEPTH
+#define ESP_HOSTED_RX_QUEUE_DEPTH 4
+#endif
+#ifndef ESP_HOSTED_RPC_QUEUE_DEPTH
+#define ESP_HOSTED_RPC_QUEUE_DEPTH 4
+#endif
+#ifndef ESP_HOSTED_HCI_QUEUE_DEPTH
+#define ESP_HOSTED_HCI_QUEUE_DEPTH 4
+#endif
+
+#ifndef NETWORK_STA_HOSTNAME
+#define NETWORK_STA_HOSTNAME "grblHAL"
+#endif
+#ifndef NETWORK_STA_IPMODE
+#define NETWORK_STA_IPMODE 1
+#endif
+#ifndef NETWORK_STA_IP
+#define NETWORK_STA_IP "192.168.5.1"
+#endif
+#ifndef NETWORK_STA_GATEWAY
+#define NETWORK_STA_GATEWAY "192.168.5.1"
+#endif
+#ifndef NETWORK_STA_MASK
+#define NETWORK_STA_MASK "255.255.255.0"
+#endif
