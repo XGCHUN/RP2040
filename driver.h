@@ -43,7 +43,7 @@
 #include "my_machine.h"
 #endif
 
-#if SDCARD_ENABLE
+#if SDCARD_ENABLE && !SDCARD_SDIO
 #define SPI_ENABLE 1
 #endif
 
@@ -172,6 +172,8 @@
   #include "boards/CV01_map.h"
   #elif defined(BOARD_RP2350_PLUS_W)
   #include "boards/rp2350_plus_w_map.h"
+#elif defined(BOARD_MOTIONDEV_2350)
+  #include "boards/motiondev_2350_map.h"
 #elif defined(BOARD_PICOBOB)
   #include "boards/picobob_map.h"
 #elif defined(BOARD_PICOBOB_G540)
@@ -260,7 +262,7 @@
 
 // End configuration
 
-#if SDCARD_ENABLE && !defined(SD_CS_PIN)
+#if SDCARD_ENABLE && !SDCARD_SDIO && !defined(SD_CS_PIN)
 #error SD card plugin not supported!
 #endif
 

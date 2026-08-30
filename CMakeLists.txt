@@ -18,7 +18,7 @@ option(ADD_HPGL "Add HPGL plugin" OFF)
  # Note: WiFi and Ethernet cannot be enabled at the same time!
 option(ADD_WIFI "Add CYW43 WiFi networking" OFF)
 option(ADD_ETHERNET "Add Ethernet networking" OFF)
-option(ADD_ESP_HOSTED "Add ESP-Hosted WiFi coprocessor networking" OFF)
+option(ADD_ESP_HOSTED "Add ESP-Hosted WiFi coprocessor networking" ON)
 option(ADD_BLUETOOTH "Add Bluetooth" OFF)
 
 set(_network_backend_count 0)
@@ -37,12 +37,12 @@ option(ADD_MQTT "Add MQTT client API" OFF)
 option(AddMyPlugin "Add my_plugin.c to build" OFF)
 
 # Select the correct board in VSCode, the following line will be updated accordingly
-set(PICO_BOARD rp2350_plus_w CACHE STRING "Board type")
+set(PICO_BOARD motiondev_2350 CACHE STRING "Board type")
 
 # Official boards with Wi-Fi: pico_w, pico2_w, pimoroni_pico_plus2_w_rp2350
-# Custom board (needs pico_boards/ header): rp2350_plus_w
+# Custom boards (need pico_boards/ header): rp2350_plus_w, motiondev_2350
 # Only needed for custom boards not in the SDK board list
-if(PICO_BOARD STREQUAL "rp2350_plus_w")
+if(PICO_BOARD STREQUAL "rp2350_plus_w" OR PICO_BOARD STREQUAL "motiondev_2350")
     set(PICO_BOARD_HEADER_DIRS ${CMAKE_CURRENT_LIST_DIR}/pico_boards CACHE STRING "Custom board headers")
     set(PICO_PLATFORM rp2350-arm-s CACHE STRING "RP2350 ARM Secure")
 endif()
@@ -104,6 +104,7 @@ if(AddMyPlugin)
     littlefs/lfs_util.c
     littlefs_hal.c
     xy2_100.c
+    sdcard/sdio.c
     )
 else()
     add_executable(grblHAL
@@ -129,11 +130,13 @@ else()
     littlefs/lfs_util.c
     littlefs_hal.c
     xy2_100.c
+    sdcard/sdio.c
     )
 endif()
 
 pico_generate_pio_header(grblHAL ${CMAKE_CURRENT_LIST_DIR}/driverPIO.pio)
 pico_generate_pio_header(grblHAL ${CMAKE_CURRENT_LIST_DIR}/xy2_100.pio)
+pico_generate_pio_header(grblHAL ${CMAKE_CURRENT_LIST_DIR}/sdcard/sdio.pio)
 pico_enable_stdio_uart(grblHAL 1)
 
 if(PICO_BOARD STREQUAL "pico" OR PICO_BOARD STREQUAL "pico_w")
@@ -180,8 +183,8 @@ if(ADD_ESP_HOSTED)
      CYW43_LWIP=0
      LWIP_NOASSERT
      HTTP_ENABLE=1
-     WEBUI_ENABLE=1
-     WEBSOCKET_ENABLE=1
+     WEBUI_ENABLE=0
+     WEBSOCKET_ENABLE=0
      TELNET_ENABLE=0
      SDCARD_ENABLE=1
     )

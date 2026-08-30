@@ -18,8 +18,100 @@
 
 #include "ff.h"
 #include "diskio.h"
-#include "hardware/spi.h"
 #include "pico/stdlib.h"
+
+#if SDCARD_ENABLE && SDCARD_SDIO
+
+/*=========================================================================*/
+/* Native SD (SDIO, 4-bit) backend - delegates to sdcard/sdio.c            */
+/*=========================================================================*/
+
+#include "../sdcard/sdio.h"
+
+static volatile DSTATUS Stat = STA_NOINIT;
+
+DSTATUS disk_initialize (BYTE drv)
+{
+    if(drv)
+        return STA_NOINIT;
+
+    if(sdio_init() == SDIO_OK)
+        Stat &= ~STA_NOINIT;
+    else
+        Stat = STA_NOINIT;
+
+    return Stat;
+}
+
+DSTATUS disk_status (BYTE drv)
+{
+    if(drv)
+        return STA_NOINIT;
+
+    return Stat;
+}
+
+DRESULT disk_read (BYTE drv, BYTE *buff, DWORD sector, BYTE count)
+{
+    if(drv)
+        return RES_PARERR;
+    if(Stat & STA_NOINIT)
+        return RES_NOTRDY;
+
+    return sdio_read_sectors((uint8_t *)buff, (uint32_t)sector, (uint32_t)count) == SDIO_OK
+            ? RES_OK : RES_ERROR;
+}
+
+#if FF_FS_READONLY == 0
+DRESULT disk_write (BYTE drv, const BYTE *buff, DWORD sector, BYTE count)
+{
+    if(drv)
+        return RES_PARERR;
+    if(Stat & STA_NOINIT)
+        return RES_NOTRDY;
+
+    return sdio_write_sectors((const uint8_t *)buff, (uint32_t)sector, (uint32_t)count) == SDIO_OK
+            ? RES_OK : RES_ERROR;
+}
+#endif
+
+DRESULT disk_ioctl (BYTE drv, BYTE ctrl, void *buff)
+{
+    if(drv)
+        return RES_PARERR;
+
+    switch(ctrl) {
+
+        case CTRL_SYNC:
+            return RES_OK;
+
+        case GET_SECTOR_COUNT:
+            *(DWORD *)buff = (DWORD)sdio_get_sector_count();
+            return *(DWORD *)buff ? RES_OK : RES_ERROR;
+
+        case GET_SECTOR_SIZE:
+            *(WORD *)buff = 512;
+            return RES_OK;
+
+        case GET_BLOCK_SIZE:
+            *(DWORD *)buff = 1;
+            return RES_OK;
+
+        default:
+            break;
+    }
+
+    return RES_PARERR;
+}
+
+void disk_timerproc (void)
+{
+    sdio_timerproc();
+}
+
+#else // !SDCARD_SDIO -> SPI mode (original implementation)
+
+#include "hardware/spi.h"
 
 /* Definitions for MMC/SDC command */
 #define CMD0    (0x40+0)    /* GO_IDLE_STATE */
@@ -687,6 +779,8 @@ void disk_timerproc (void)
     if (n) Timer2 = --n;
 
 }
+
+#endif // SDCARD_SDIO selection
 
 /*---------------------------------------------------------*/
 /* User Provided Timer Function for FatFs module           */
