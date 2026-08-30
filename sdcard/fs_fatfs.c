@@ -396,7 +396,7 @@ FLASHMEM void fs_fatfs_mount (const char *path)
 #endif
     };
 
-    vfs_mount(path, &fs, mode);
+    vfs_mount(NULL, path, &fs, mode);
 }
 
 #endif

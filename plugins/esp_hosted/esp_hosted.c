@@ -644,10 +644,18 @@ static void wifi_settings_restore(void)
     strlcpy(wifi.sta.network.ip, NETWORK_STA_IP, sizeof(wifi.sta.network.ip));
     strlcpy(wifi.sta.network.gateway, NETWORK_STA_GATEWAY, sizeof(wifi.sta.network.gateway));
     strlcpy(wifi.sta.network.mask, NETWORK_STA_MASK, sizeof(wifi.sta.network.mask));
+#if TELNET_ENABLE
     wifi.sta.network.telnet_port = NETWORK_TELNET_PORT;
+#endif
+#if WEBSOCKET_ENABLE
     wifi.sta.network.websocket_port = NETWORK_WEBSOCKET_PORT;
+#endif
+#if HTTP_ENABLE
     wifi.sta.network.http_port = NETWORK_HTTP_PORT;
+#endif
+#if FTP_ENABLE
     wifi.sta.network.ftp_port = NETWORK_FTP_PORT;
+#endif
     wifi.sta.network.services = allowed_services;
     wifi_settings_save();
 }

@@ -145,7 +145,7 @@ static bool sdcard_unmount (void)
 #endif
         if(mount_changed && fatfs) {
             fatfs = NULL;
-            vfs_unmount("/");
+            vfs_unmount(NULL, "/");
         }
     }
 

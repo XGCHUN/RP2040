@@ -277,7 +277,7 @@ static inline uint16_t streamRxCount (void)
     return BUFCOUNT(head, tail, RX_BUFFER_SIZE);
 }
 
-static uint16_t streamRxFree (void)
+static uint32_t streamRxFree (void)
 {
     return (RX_BUFFER_SIZE - 1) - streamRxCount();
 }
@@ -350,7 +350,7 @@ static void streamWriteS (const char *data)
         streamPutC((uint8_t)c);
 }
 
-static void streamWrite (const uint8_t *data, uint16_t length)
+static void streamWrite (const uint8_t *data, uint32_t length)
 {
     uint8_t *ptr = (uint8_t *)data;
 
@@ -358,7 +358,7 @@ static void streamWrite (const uint8_t *data, uint16_t length)
         streamPutC(*ptr++);
 }
 
-static uint16_t streamTxCount (void) {
+static uint32_t streamTxCount (void) {
 
     uint_fast16_t head = streambuffers.txbuf.head, tail = streambuffers.txbuf.tail;
 

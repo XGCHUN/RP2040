@@ -353,7 +353,7 @@ FLASHMEM void fs_littlefs_mount (const char *path, const struct lfs_config *conf
         vfs_st_mode_t mode = {0};
         mode.hidden = settings.fs_options.lfs_hidden;
         is_rootfs = !strcmp(path, "/");
-        hal.driver_cap.littlefs = vfs_mount(path, &littlefs, mode);
+        hal.driver_cap.littlefs = vfs_mount(NULL, path, &littlefs, mode);
     } else
         task_run_on_startup(report_warning, "LittleFS mount failed!");
 }
