@@ -105,6 +105,7 @@ if(AddMyPlugin)
     littlefs_hal.c
     xy2_100.c
     sdcard/sdio.c
+    sdcard/sd_spi.c
     )
 else()
     add_executable(grblHAL
@@ -131,6 +132,7 @@ else()
     littlefs_hal.c
     xy2_100.c
     sdcard/sdio.c
+    sdcard/sd_spi.c
     )
 endif()
 

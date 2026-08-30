@@ -82,6 +82,11 @@
 #include "sdcard/sdcard.h"
 #include "ff.h"
 #include "diskio.h"
+#if SDCARD_SDIO
+#include "sdcard/sdio.h"
+#else
+#include "sdcard/sd_spi.h"
+#endif
 #endif
 
 #if LITTLEFS_ENABLE
@@ -2651,6 +2656,14 @@ static bool driver_setup (settings_t *settings)
     }
 
 #if SDCARD_ENABLE
+    // Register the block-device backend with the FatFs diskio forwarding layer
+    // before the first mount. The backend performs the actual hardware bring-up
+    // lazily on the first disk_initialize().
+#if SDCARD_SDIO
+    sdio_register(0);
+#else
+    sd_spi_register(0);
+#endif
     sdcard_init();
 #elif LITTLEFS_ENABLE
     fs_macros_init();

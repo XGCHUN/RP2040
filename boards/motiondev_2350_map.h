@@ -163,6 +163,12 @@
 #define SDIO_D2_PIN         6           // data line 2 (= D0 + 2)
 #define SDIO_D3_PIN         7           // data line 3 (= D0 + 3)
 
+// Mount the SD card automatically at power-up (grbl default is off). This is
+// what makes the TF card come up on first boot without a manual $FM/mount.
+#ifndef DEFAULT_FS_SD_AUTOMOUNT
+#define DEFAULT_FS_SD_AUTOMOUNT 1
+#endif
+
 // === ESP32-C6 Wi-Fi/BT coprocessor over SPI1 (ESP-Hosted) ===
 #if ESP_HOSTED_ENABLE
 // Network service ports. The grbl defaults (driver_opts.h) are only defined

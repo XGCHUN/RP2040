@@ -43,4 +43,8 @@ bool sdio_card_ready (void);
 // 10 ms tick used for internal timeouts (call from disk_timerproc).
 void sdio_timerproc (void);
 
+// Register this SDIO backend as the FatFs block device for a physical drive.
+// (pdrv is a FatFs BYTE drive number.) Call during storage init.
+void sdio_register (uint8_t pdrv);
+
 #endif // _GRBLHAL_SDIO_H_

@@ -25,6 +25,7 @@
 #include <string.h>
 
 #include "sdio.h"
+#include "../fatfs/diskio_register.h"
 
 #include "hardware/pio.h"
 #include "hardware/dma.h"
@@ -293,12 +294,22 @@ static sdio_result_t sdio_command_R2 (uint8_t command, uint32_t arg, uint8_t *re
     }
 
     if(response) {
-        // 128-bit payload spread across the 5 received words (MSB first).
-        for(int i = 0; i < 15; i++) {
-            uint32_t w = buf[i / 4];
-            response[i] = (uint8_t)(w >> (24 - 8 * (i & 3)));
-        }
-        response[15] = 0;
+        // The R2 response is 136 bits: an 8-bit prefix (start/transmit/reserved)
+        // followed by the 128-bit CID/CSD payload. The PIO pushed it MSB-first
+        // as 5 words (word4 holds the final 8 bits in its low byte). Rebuild the
+        // 128-bit payload by dropping the top 8 bits, i.e. shift the whole
+        // stream left by one byte.
+        //   payload[127:96] = (buf0 << 8) | (buf1 >> 24), etc.
+        uint32_t p[4];
+        p[0] = (buf[0] << 8) | (buf[1] >> 24);
+        p[1] = (buf[1] << 8) | (buf[2] >> 24);
+        p[2] = (buf[2] << 8) | (buf[3] >> 24);
+        p[3] = (buf[3] << 8) | (buf[4] & 0xFF);
+        for(int i = 0; i < 16; i++)
+            response[i] = (uint8_t)(p[i / 4] >> (24 - 8 * (i & 3)));
+        // NOTE: capacity derived from this (card_sectors) is best-effort and
+        // not hardware-verified; it does not affect mounting (FatFs reads the
+        // real size from the BPB), only $ status / mkfs.
     }
 
     return SDIO_OK;
@@ -489,19 +500,28 @@ static bool claim_resources (void)
  * PIO configuration
  *******************************************************/
 
+static bool programs_loaded = false;
+
 static bool pio_setup (float clk_div)
 {
-    // Load programs (data programs are added on demand from a shared area is
-    // not possible here as offsets are used directly; load all three once).
     pio_sm_set_enabled(sdio_pio, cmd_sm, false);
     pio_sm_set_enabled(sdio_pio, data_sm, false);
 
-    // (Re)load into the PIO instruction memory.
-    if(!pio_can_add_program(sdio_pio, &sdio_cmd_clk_program))
-        return false;
-    off_cmd_clk = pio_add_program(sdio_pio, &sdio_cmd_clk_program);
-    off_data_rx = pio_add_program(sdio_pio, &sdio_data_rx_program);
-    off_data_tx = pio_add_program(sdio_pio, &sdio_data_tx_program);
+    // Load the three PIO programs into the instruction memory exactly once.
+    // pio_setup() may run again on an init retry, and this PIO can be shared
+    // with other users (e.g. xy2_100 on PIO2), so we must NOT clear the
+    // instruction memory or re-add programs - that would exhaust program space
+    // and clobber the other user. Cache the offsets and reuse them.
+    if(!programs_loaded) {
+        if(!pio_can_add_program(sdio_pio, &sdio_cmd_clk_program) ||
+           !pio_can_add_program(sdio_pio, &sdio_data_rx_program) ||
+           !pio_can_add_program(sdio_pio, &sdio_data_tx_program))
+            return false;
+        off_cmd_clk = pio_add_program(sdio_pio, &sdio_cmd_clk_program);
+        off_data_rx = pio_add_program(sdio_pio, &sdio_data_rx_program);
+        off_data_tx = pio_add_program(sdio_pio, &sdio_data_tx_program);
+        programs_loaded = true;
+    }
 
     // --- Command / clock state machine ---
     pio_sm_config cfg = sdio_cmd_clk_program_get_default_config(off_cmd_clk);
@@ -721,6 +741,91 @@ uint32_t sdio_get_sector_count (void)
 bool sdio_card_ready (void)
 {
     return card_ready;
+}
+
+/*******************************************************
+ * FatFs block device ops (diskio registration)
+ *******************************************************/
+
+static volatile DSTATUS sdio_stat = STA_NOINIT;
+
+static DSTATUS sdio_ops_initialize (void)
+{
+    if(sdio_init() == SDIO_OK)
+        sdio_stat &= ~STA_NOINIT;
+    else
+        sdio_stat = STA_NOINIT;
+
+    return sdio_stat;
+}
+
+static DSTATUS sdio_ops_status (void)
+{
+    return sdio_stat;
+}
+
+static DRESULT sdio_ops_read (BYTE *buff, DWORD sector, BYTE count)
+{
+    if(sdio_stat & STA_NOINIT)
+        return RES_NOTRDY;
+
+    return sdio_read_sectors((uint8_t *)buff, (uint32_t)sector, (uint32_t)count) == SDIO_OK
+            ? RES_OK : RES_ERROR;
+}
+
+#if FF_FS_READONLY == 0
+static DRESULT sdio_ops_write (const BYTE *buff, DWORD sector, BYTE count)
+{
+    if(sdio_stat & STA_NOINIT)
+        return RES_NOTRDY;
+
+    return sdio_write_sectors((const uint8_t *)buff, (uint32_t)sector, (uint32_t)count) == SDIO_OK
+            ? RES_OK : RES_ERROR;
+}
+#endif
+
+static DRESULT sdio_ops_ioctl (BYTE cmd, void *buff)
+{
+    switch(cmd) {
+
+        case CTRL_SYNC:
+            return RES_OK;
+
+        case GET_SECTOR_COUNT:
+            *(DWORD *)buff = (DWORD)sdio_get_sector_count();
+            return *(DWORD *)buff ? RES_OK : RES_ERROR;
+
+        case GET_SECTOR_SIZE:
+            *(WORD *)buff = SDIO_BLOCK_SIZE;
+            return RES_OK;
+
+        case GET_BLOCK_SIZE:
+            *(DWORD *)buff = 1;
+            return RES_OK;
+
+        default:
+            break;
+    }
+
+    return RES_PARERR;
+}
+
+static const diskio_ops_t sdio_ops = {
+    .initialize = sdio_ops_initialize,
+    .status     = sdio_ops_status,
+    .read       = sdio_ops_read,
+#if FF_FS_READONLY == 0
+    .write      = sdio_ops_write,
+#else
+    .write      = NULL,
+#endif
+    .ioctl      = sdio_ops_ioctl,
+    .timerproc  = sdio_timerproc
+};
+
+void sdio_register (uint8_t pdrv)
+{
+    diskio_register((BYTE)pdrv, &sdio_ops);
 }
 
 #endif // SDCARD_ENABLE && SDCARD_SDIO
