@@ -94,7 +94,8 @@ typedef enum {
     CARD_SDHC
 } card_type_t;
 
-static PIO   sdio_pio  = NULL;
+static PIO   configured_pio = NULL;  // PIO instance supplied by the caller
+static PIO   sdio_pio = NULL;
 static uint  cmd_sm    = 0;   // command / clock state machine
 static uint  data_sm   = 1;   // data state machine
 static int   dma_ch    = -1;
@@ -461,34 +462,26 @@ static sdio_result_t sdio_write_block (const uint8_t *buff)
 
 static bool claim_resources (void)
 {
-    // Prefer PIO2 on RP2350B (step pulse uses PIO0/PIO1, stepper timer PIO1,
-    // xy2_100 uses one SM of PIO2). Two adjacent SMs and one DMA channel are
-    // needed. Fall back to any PIO with two free SMs.
-    PIO order[] = {
-#ifdef PICO_RP2350B
-        pio2,
-#endif
-        pio1,
-        pio0
-    };
+    // The PIO instance is chosen by the caller (sdio_register); the driver must
+    // own it exclusively (the three programs fill the whole instruction memory).
+    // Claim two SMs on that PIO - one for command/clock, one for data - plus a
+    // DMA channel. Two adjacent SMs and one DMA channel are needed.
+    if(configured_pio == NULL)
+        return false;
 
-    for(uint i = 0; i < sizeof(order) / sizeof(order[0]); i++) {
-        int a = pio_claim_unused_sm(order[i], false);
-        if(a < 0)
-            continue;
-        int b = pio_claim_unused_sm(order[i], false);
-        if(b < 0) {
-            pio_sm_unclaim(order[i], (uint)a);
-            continue;
-        }
-        sdio_pio = order[i];
-        cmd_sm = (uint)a;
-        data_sm = (uint)b;
-        break;
+    int a = pio_claim_unused_sm(configured_pio, false);
+    if(a < 0)
+        return false;
+
+    int b = pio_claim_unused_sm(configured_pio, false);
+    if(b < 0) {
+        pio_sm_unclaim(configured_pio, (uint)a);
+        return false;
     }
 
-    if(sdio_pio == NULL)
-        return false;
+    sdio_pio = configured_pio;
+    cmd_sm = (uint)a;
+    data_sm = (uint)b;
 
     if((dma_ch = dma_claim_unused_channel(false)) < 0)
         return false;
@@ -508,10 +501,9 @@ static bool pio_setup (float clk_div)
     pio_sm_set_enabled(sdio_pio, data_sm, false);
 
     // Load the three PIO programs into the instruction memory exactly once.
-    // pio_setup() may run again on an init retry, and this PIO can be shared
-    // with other users (e.g. xy2_100 on PIO2), so we must NOT clear the
-    // instruction memory or re-add programs - that would exhaust program space
-    // and clobber the other user. Cache the offsets and reuse them.
+    // pio_setup() may run again on an init retry, so we must NOT clear the
+    // instruction memory or re-add programs - that would exhaust program space.
+    // Cache the offsets and reuse them.
     if(!programs_loaded) {
         if(!pio_can_add_program(sdio_pio, &sdio_cmd_clk_program) ||
            !pio_can_add_program(sdio_pio, &sdio_data_rx_program) ||
@@ -823,8 +815,9 @@ static const diskio_ops_t sdio_ops = {
     .timerproc  = sdio_timerproc
 };
 
-void sdio_register (uint8_t pdrv)
+void sdio_register (void *pio, uint8_t pdrv)
 {
+    configured_pio = (PIO)pio;
     diskio_register((BYTE)pdrv, &sdio_ops);
 }
 

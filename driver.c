@@ -134,6 +134,14 @@
 #define STEP_PIO_IRQ    PIO0_IRQ_0
 #endif
 
+#ifndef SDIO_PIO
+#if defined(PICO_RP2350A) || defined(PICO_RP2350B)
+#define SDIO_PIO        pio2
+#else
+#define SDIO_PIO        pio1
+#endif
+#endif
+
 #if STEP_PORT == GPIO_SR8
 static PIO sr8_pio;
 static uint sr8_sm;
@@ -2667,7 +2675,7 @@ static bool driver_setup (settings_t *settings)
     // before the first mount. The backend performs the actual hardware bring-up
     // lazily on the first disk_initialize().
 #if SDCARD_SDIO
-    sdio_register(0);
+    sdio_register(SDIO_PIO, 0);
 #else
     sd_spi_register(0);
 #endif

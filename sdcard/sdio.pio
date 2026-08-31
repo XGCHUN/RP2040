@@ -18,9 +18,11 @@
 .define D1 1
 .define PUBLIC CLKDIV D0 + 1 + D1 + 1
 
-; This is relative to D0 GPIO number, selected by adding this index to the
-; PINCTRL_IN_BASE (which is set to D0), modulo 32. Must be between 4 and 31.
-; MotionDev 2350: CLK = GPIO3, D0 = GPIO4  =>  CLK - D0 = -1  =>  mod32 = 31
+; CLK pin offset relative to D0. The data SM uses D0 as its IN pin base, so
+; to reference CLK in a "wait" instruction we need (CLK - D0) mod 32.
+; The driver enforces CLK == D0 - 1 (see sdio.c), therefore the offset is
+; always (-1) mod 32 = 31 regardless of the actual GPIO numbers chosen by
+; the board map.
 .define PUBLIC SDIO_CLK_PIN_D0_OFFSET 31
 
 ; State machine 0: generates continuous clock on SDIO_CLK, sends CMD packets
