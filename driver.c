@@ -127,6 +127,13 @@
 #include "networking/wiznet/enet.h"
 #endif
 
+#ifndef STEP_PIO
+#define STEP_PIO        pio0
+#endif
+#ifndef STEP_PIO_IRQ
+#define STEP_PIO_IRQ    PIO0_IRQ_0
+#endif
+
 #if STEP_PORT == GPIO_SR8
 static PIO sr8_pio;
 static uint sr8_sm;
@@ -850,14 +857,14 @@ static void stepperEnable (axes_signals_t enable, bool hold)
 static void stepperWakeUp (void)
 {
     hal.stepper.enable((axes_signals_t){AXES_BITMASK}, false);
-    stepper_timer_set_period(pio1, stepper_timer_sm, stepper_timer_sm_offset, hal.f_step_timer / 50, 0); // ~2ms delay to allow drivers time to wake up.
-    irq_set_enabled(PIO1_IRQ_0, true);
+    stepper_timer_set_period(STEP_PIO, stepper_timer_sm, stepper_timer_sm_offset, hal.f_step_timer / 50, 0); // ~2ms delay to allow drivers time to wake up.
+    irq_set_enabled(STEP_PIO_IRQ, true);
 }
 
 // Sets up stepper driver interrupt timeout, "Normal" version
 static void __not_in_flash_func(stepperCyclesPerTick)(uint32_t cycles_per_tick)
 {
-    stepper_timer_set_period(pio1, stepper_timer_sm, stepper_timer_sm_offset, cycles_per_tick < 1000000 ? max(cycles_per_tick, step_pulse.t_min_period) : 1000000, PIO_RATE_ADJ);
+    stepper_timer_set_period(STEP_PIO, stepper_timer_sm, stepper_timer_sm_offset, cycles_per_tick < 1000000 ? max(cycles_per_tick, step_pulse.t_min_period) : 1000000, PIO_RATE_ADJ);
 }
 
 #if STEP_PORT == GPIO_PIO || STEP_PORT == GPIO_PIO_1
@@ -1436,8 +1443,8 @@ static void stepperSetDirOutputs (axes_signals_t dir_out)
 // Disables stepper driver interrupts
 static void stepperGoIdle (bool clear_signals)
 {
-    irq_set_enabled(PIO1_IRQ_0, false);
-    stepper_timer_stop(pio1, stepper_timer_sm);
+    irq_set_enabled(STEP_PIO_IRQ, false);
+    stepper_timer_stop(STEP_PIO, stepper_timer_sm);
     
     if(clear_signals) {
         stepperSetDirOutputs((axes_signals_t){0});
@@ -3078,11 +3085,13 @@ bool driver_init (void)
     pio_sm_claim(pio1, 0); // Reserve PIO state machine for cyw43 driver.
 #endif
 
-    stepper_timer_sm = pio_claim_unused_sm(pio1, false);
-    stepper_timer_sm_offset = pio_add_program(pio1, &stepper_timer_program);
-    stepper_timer_program_init(pio1, stepper_timer_sm, stepper_timer_sm_offset, pio_clk); // 10MHz
-    irq_set_exclusive_handler(PIO1_IRQ_0, stepper_int_handler);
-    irq_set_priority(PIO1_IRQ_0, PICO_HIGHEST_IRQ_PRIORITY);
+    // stepper_timer lives on STEP_PIO together with step_pulse and xy2_100,
+    // keeping the other PIO blocks free for other consumers (PIO USB, PIO SDIO).
+    stepper_timer_sm = pio_claim_unused_sm(STEP_PIO, false);
+    stepper_timer_sm_offset = pio_add_program(STEP_PIO, &stepper_timer_program);
+    stepper_timer_program_init(STEP_PIO, stepper_timer_sm, stepper_timer_sm_offset, pio_clk); // 10MHz
+    irq_set_exclusive_handler(STEP_PIO_IRQ, stepper_int_handler);
+    irq_set_priority(STEP_PIO_IRQ, PICO_HIGHEST_IRQ_PRIORITY);
 
 #if STEP_PORT == GPIO_PIO_1
 
@@ -3132,8 +3141,13 @@ bool driver_init (void)
 #define STEP_PIO_PIN_COUNT (N_AXIS + N_GANGED)
 #endif
 
-if(pio_claim_free_sm_and_add_program_for_gpio_range(&step_pulse_program, &step_pio, &step_sm, &pio_offset, STEP_PINS_BASE, STEP_PIO_PIN_COUNT, STEP_PINS_BASE + STEP_PIO_PIN_COUNT > 31))
-   step_pulse_program_init(step_pio, step_sm, pio_offset, STEP_PINS_BASE, STEP_PIO_PIN_COUNT, pio_clk);
+    // step_pulse is pinned to STEP_PIO (step pins are < 32, so no high GPIO
+    // range needed) so all grblHAL PIO users stay on one PIO and never scatter
+    // onto the other PIO blocks, reserved for other consumers (PIO USB, SDIO).
+    step_pio = STEP_PIO;
+    step_sm = (uint)pio_claim_unused_sm(STEP_PIO, true);
+    pio_offset = pio_add_program(STEP_PIO, &step_pulse_program);
+    step_pulse_program_init(step_pio, step_sm, pio_offset, STEP_PINS_BASE, STEP_PIO_PIN_COUNT, pio_clk);
 
 #elif STEP_PORT == GPIO_SR8
 
@@ -3269,7 +3283,7 @@ static void __not_in_flash_func(stepper_int_handler)(void)
 {
     hal.stepper.interrupt_callback();
 
-    stepper_timer_irq_clear(pio1);
+    stepper_timer_irq_clear(STEP_PIO);
 
 #if XY2_100_ENABLE
     // After step execution, send updated galvo position

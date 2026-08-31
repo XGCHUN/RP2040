@@ -61,6 +61,13 @@ _Static_assert(XY2_SYNC_PIN == XY2_CLK_PIN + 1,
 #define XY2_PARITY_ODD  0
 #endif
 
+// XY2-100 shares the PIO instance used by step_pulse / stepper_timer so that
+// all grblHAL PIO users stay on one PIO, leaving the other PIO blocks free for
+// other consumers (PIO USB, PIO SDIO). Change this macro to relocate it.
+#ifndef XY2_PIO
+#define XY2_PIO         pio0
+#endif
+
 // PIO resources
 static PIO xy2_pio;
 static uint xy2_sm;
@@ -83,8 +90,7 @@ static float compute_scale(uint_fast8_t axis_idx)
 
 void xy2_100_init(void)
 {
-    // Use PIO2 (RP2350-only) to avoid conflicts with step_pulse (PIO0/1) and stepper_timer (PIO1)
-    xy2_pio = pio2;
+    xy2_pio = XY2_PIO;
     xy2_sm = pio_claim_unused_sm(xy2_pio, true);
     uint xy2_offset = pio_add_program(xy2_pio, &xy2_100_program);
     xy2_100_program_init(xy2_pio, xy2_sm, xy2_offset, XY2_DATA_0_PIN, XY2_CLK_PIN);
