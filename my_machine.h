@@ -34,7 +34,7 @@
 //#define BOARD_CV00              // 8-axis galvo laser: U/V galvo + XYZABC steppers
 //#define BOARD_CV01              // 4-axis galvo laser: X/Y galvo + ZA steppers
 //#define BOARD_RP2350_PLUS_W     // 4-axis galvo laser: X/Y galvo + ZA steppers. with WiFi and BT
-#define BOARD_MOTIONDEV_2350      // 6-axis (XYZA steppers + UV galvo), ESP32-C6 WiFi/BT, SDIO SD, 8M PSRAM
+//#define BOARD_MOTIONDEV_2350    // 6-axis (XYZA steppers + UV galvo), ESP32-C6 WiFi/BT, SDIO SD, 8M PSRAM
 //#define BOARD_SLB_LITE
 //#define BOARD_CNC_BOOSTERPACK
 //#define BOARD_CITOH_CX6000    // C.ITOH CX-6000 HPGL plotter

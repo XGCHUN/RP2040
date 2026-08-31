@@ -37,7 +37,17 @@ option(ADD_MQTT "Add MQTT client API" OFF)
 option(AddMyPlugin "Add my_plugin.c to build" OFF)
 
 # Select the correct board in VSCode, the following line will be updated accordingly
-set(PICO_BOARD motiondev_2350 CACHE STRING "Board type")
+# set(PICO_BOARD motiondev_2350 CACHE STRING "Board type") # Select the correct board in source build.sh
+
+# Select the grblHAL board map without editing my_machine.h: pass
+# -DGRBL_BOARD=BOARD_XXX and it is injected as a compile definition so the
+# "#elif defined(BOARD_XXX)" dispatch in my_machine.h picks it up. Keep every
+# BOARD_xxx line in my_machine.h commented out so this stays the single source
+# of truth (build.sh does this for you).
+if(DEFINED GRBL_BOARD AND NOT GRBL_BOARD STREQUAL "")
+    add_compile_definitions(${GRBL_BOARD})
+    message(STATUS "grblHAL board map: ${GRBL_BOARD}")
+endif()
 
 # Official boards with Wi-Fi: pico_w, pico2_w, pimoroni_pico_plus2_w_rp2350
 # Custom boards (need pico_boards/ header): rp2350_plus_w, motiondev_2350
