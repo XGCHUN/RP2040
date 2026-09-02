@@ -49,6 +49,11 @@
 #define BOARD_NAME "MotionDev 2350"
 #define BOARD_URL  ""
 
+#define STEP_PIO          pio0
+#define SDIO_PIO          pio1
+#define PIO_USB_HOST_PIO  2 // pio2
+#define XY2_PIO STEP_PIO
+
 // === PSRAM (8 MB) ===
 #undef PICO_PSRAM_CS_PIN
 #define PICO_PSRAM_CS_PIN 47
@@ -196,6 +201,12 @@
 #define ESP_HOSTED_DATA_READY_PIN   13
 #define ESP_HOSTED_RESET_PIN        14
 #endif
+
+// === PIO USB host (GPIO45 = D-, GPIO46 = D+) ===
+// Full-speed USB host via Pico-PIO-USB on a dedicated PIO block (defaults to
+// pio1; pio0 = step/timer/xy2_100, pio2 = SDIO). D- must be D+ - 1.
+// Enabled with the ADD_PIO_USB_HOST CMake option (defines PIO_USB_HOST_ENABLE).
+#define PIO_USB_DP_PIN      46          // D+ (D- = 45)
 
 // === WS2812 RGB LED (GPIO39) ===
 // Data line for the WS2812/NeoPixel status LED. Wired to the neopixels /

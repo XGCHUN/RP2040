@@ -35,6 +35,7 @@ option(ADD_mDNS "Add mDNS service" OFF)
 option(ADD_MQTT "Add MQTT client API" OFF)
 #
 option(AddMyPlugin "Add my_plugin.c to build" OFF)
+option(ADD_PIO_USB_HOST "Add PIO USB host (Pico-PIO-USB) for USB camera / HID" ON)
 
 # Select the correct board in VSCode, the following line will be updated accordingly
 # set(PICO_BOARD motiondev_2350 CACHE STRING "Board type") # Select the correct board in source build.sh
@@ -162,6 +163,10 @@ endif()
 target_compile_definitions(grblHAL PUBLIC RP2040)
 target_compile_definitions(grblHAL PUBLIC NEW_FATFS)
 #target_compile_definitions(grblHAL PUBLIC LITTLEFS_ENABLE=1)
+
+if(ADD_PIO_USB_HOST)
+    include(pio_usb/CMakeLists.txt)
+endif()
 
 if(ADD_WIFI)
     target_compile_definitions(grblHAL PUBLIC WIFI_ENABLE=1)

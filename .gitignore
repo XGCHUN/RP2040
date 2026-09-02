@@ -36,3 +36,6 @@ build*
 
 .build_board
 .build_board_map
+
+# Third-party components fetched locally (not tracked). Clone them here on demand.
+managed_components/

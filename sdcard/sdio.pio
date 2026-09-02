@@ -5,7 +5,7 @@
 ; whose SDIO PIO code is derived from ZuluSCSI-firmware. Original code is an
 ; independent implementation; the RP2040 pico-extras work-in-progress code was
 ; a reference. Kept verbatim except for SDIO_CLK_PIN_D0_OFFSET which is set for
-; the MotionDev 2350 pin layout (CLK = D0 - 1).
+; the pin layout (CLK = D0 - 1).
 ;
 ; For official SDIO specifications, refer to:
 ; https://www.sdcard.org/downloads/pls/
