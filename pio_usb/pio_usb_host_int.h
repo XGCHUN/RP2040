@@ -22,6 +22,11 @@
 // is full (diagnostics only).
 void pio_usb_queue_msg (const char *s);
 
+// Notify the UVC layer that a device was mounted, so it can probe for a video
+// interface. Always defined (a no-op when UVC support is not built) so the
+// host core can call it unconditionally.
+void pio_usb_uvc_device_mounted (uint8_t daddr);
+
 #endif // PIO_USB_HOST_ENABLE
 
 #endif // _GRBLHAL_PIO_USB_HOST_INT_H_

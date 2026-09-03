@@ -135,6 +135,9 @@ void tuh_mount_cb (uint8_t daddr)
     strcat(buf, uitoa(pid));
     strcat(buf, "]" ASCII_EOL);
     pio_usb_queue_msg(buf);
+
+    // Let the UVC layer look for a video interface on this device.
+    pio_usb_uvc_device_mounted(daddr);
 }
 
 void tuh_umount_cb (uint8_t daddr)
