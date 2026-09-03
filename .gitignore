@@ -32,7 +32,7 @@ build
 # =========================
 
 .vscode/
-build*
+build
 
 .build_board
 .build_board_map
